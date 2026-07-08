@@ -1,0 +1,8 @@
+pytelegrambotapi>=4.16.0
+sqlalchemy>=2.0.23
+python-dotenv>=1.0.0
+requests>=2.31.0
+urllib3>=2.1.0
+groq>=0.5.0
+transformers>=4.36.0     # (опционально, для локальных моделей)
+torch>=2.1.0             # (опционально, для локальных моделей)
