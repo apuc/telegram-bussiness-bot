@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Статистика — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Статистика использования</h1>
+<div class="card">
+    <p><strong>В кабинете с:</strong> {{ stats.created_at }}</p>
+    <p><strong>Всего постов:</strong> {{ stats.total_posts }}</p>
+</div>
+<h2>По платформам</h2>
+{% if stats.by_platform %}
+<ul>
+    {% for platform, count in stats.by_platform.items() %}
+    <li>{{ platform }}: {{ count }}</li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>Пока нет постов.</p>
+{% endif %}
+<p><a href="/dashboard">← Назад в кабинет</a></p>
+{% endblock %}

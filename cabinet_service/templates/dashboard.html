@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Главная — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Привет, {{ user.name }}!</h1>
+<div class="card">
+    <p><strong>Телефон:</strong> {{ user.phone }}</p>
+    <p><strong>Вид бизнеса:</strong> {{ business_name }}</p>
+    <p><strong>Описание:</strong> {{ user.description }}</p>
+    <p><strong>В кабинете с:</strong> {{ user.created_at }}</p>
+</div>
+<div class="grid">
+    <a class="tile" href="/generate">💡 Сгенерировать пост</a>
+    <a class="tile" href="/plan">📅 Контент-план</a>
+    <a class="tile" href="/history">📜 История постов</a>
+    <a class="tile" href="/images">🖼 Медиа-библиотека</a>
+    <a class="tile" href="/stats">📈 Статистика</a>
+    <a class="tile" href="/profile/edit">✏️ Редактировать профиль</a>
+    <a class="tile tile-danger" href="/delete-account">🗑 Удалить аккаунт</a>
+</div>
+{% endblock %}

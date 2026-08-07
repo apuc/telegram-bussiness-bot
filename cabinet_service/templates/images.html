@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Картинки — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Медиа-библиотека</h1>
+<p><a class="copy-btn" href="/images/generate">🎨 Сгенерировать картинку</a></p>
+{% if images %}
+<div class="media-grid">
+    {% for img in images %}
+    <div class="media-card">
+        <a href="/media/{{ img.filename }}" target="_blank" title="Открыть в полном размере">
+            <img class="media-thumb" src="/media/{{ img.filename }}" alt="{{ img.prompt }}" loading="lazy">
+        </a>
+        <div class="media-body">
+            <div class="media-prompt" title="{{ img.prompt }}">{{ img.prompt }}</div>
+            <div class="post-meta">{{ img.created_at }}</div>
+            <div class="post-actions">
+                <a class="copy-btn" href="/media/{{ img.filename }}" download>⬇ Скачать</a>
+                <form method="post" action="/images/{{ img.id }}/delete" class="inline-form"
+                      onsubmit="return confirm('Удалить эту картинку?');">
+                    <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <p>Картинок пока нет.</p>
+    <p><a href="/images/generate">🎨 Сгенерировать первую картинку</a></p>
+</div>
+{% endif %}
+<p><a href="/dashboard">← Назад в кабинет</a></p>
+{% endblock %}

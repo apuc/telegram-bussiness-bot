@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Контент-план — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Контент-план</h1>
+
+{% if plan %}
+<div class="chips">
+    <span class="chip chip-planned">📝 В плане: {{ status_counts.get('planned', 0) }}</span>
+    <span class="chip chip-published">✅ Опубликовано: {{ status_counts.get('published', 0) }}</span>
+    <span class="chip chip-postponed">🕓 Отложено: {{ status_counts.get('postponed', 0) }}</span>
+</div>
+
+<div class="plan-list">
+    {% for item in plan %}
+    <div class="card plan-item status-{{ item.status }}">
+        <div class="plan-item-head">
+            <span class="plan-day">День {{ item.day }}</span>
+            <span class="plan-platform">{{ platform_label(item.platform) }}</span>
+            <span class="status-badge status-{{ item.status }}">
+                {% if item.status == 'published' %}✅ Опубликовано
+                {% elif item.status == 'postponed' %}🕓 Отложено
+                {% else %}📝 В плане{% endif %}
+            </span>
+        </div>
+        <div class="plan-idea">{{ item.idea }}</div>
+        <div class="post-actions">
+            <form method="post" action="/plan/{{ item.id }}/status" class="inline-form">
+                <select name="status" class="status-select">
+                    <option value="planned" {% if item.status == 'planned' %}selected{% endif %}>📝 В плане</option>
+                    <option value="published" {% if item.status == 'published' %}selected{% endif %}>✅ Опубликовано</option>
+                    <option value="postponed" {% if item.status == 'postponed' %}selected{% endif %}>🕓 Отложено</option>
+                </select>
+                <button type="submit" class="copy-btn">Сохранить</button>
+            </form>
+            <form method="post" action="/plan/{{ item.id }}/delete" class="inline-form"
+                  onsubmit="return confirm('Удалить этот пункт плана?');">
+                <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <p>Контент-плана пока нет. Составь его на 1–14 дней — он будет сохранён, и ты сможешь отмечать опубликованные и отложенные посты.</p>
+</div>
+{% endif %}
+
+<h2>{% if plan %}Пересоставить план{% else %}Составить план{% endif %}</h2>
+<form method="post" action="/plan" class="form"
+      onsubmit="{% if plan %}return confirm('Новый план заменит текущий (отметки статусов сбросятся). Продолжить?');{% endif %}">
+    <label>На сколько дней (1-14)
+        <input type="number" name="days" min="1" max="14" value="7" required>
+    </label>
+    <button type="submit">📅 Составить план</button>
+</form>
+<p><a href="/dashboard">← Назад в кабинет</a></p>
+{% endblock %}

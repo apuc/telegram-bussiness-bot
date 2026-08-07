@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Удаление аккаунта — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Удалить аккаунт?</h1>
+<p>Это безвозвратно удалит твой профиль и всю историю постов.</p>
+<form method="post" action="/delete-account" class="form">
+    <input type="hidden" name="confirm" value="yes">
+    <button type="submit" class="button-danger">Да, удалить аккаунт</button>
+</form>
+<p><a href="/dashboard">Отмена, вернуться в кабинет</a></p>
+{% endblock %}

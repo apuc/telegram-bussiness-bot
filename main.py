@@ -2,6 +2,7 @@ import telebot
 import requests
 import sys
 import os
+import threading
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from telebot import apihelper
@@ -87,13 +88,13 @@ def status_bot(message):
     import datetime
     now = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     
-    # Проверяем, есть ли GROQ_API_KEY
+    # Проверяем, есть ли PIAPI_API_KEY
     try:
-        from config import GROQ_API_KEY
-        groq_status = "подключен ✅" if GROQ_API_KEY else "не подключен ⚠️"
+        from config import PIAPI_API_KEY
+        piapi_status = "подключен ✅" if PIAPI_API_KEY else "не подключен ⚠️"
     except:
-        groq_status = "не подключен ⚠️"
-    
+        piapi_status = "не подключен ⚠️"
+
     status_text = f"""
 📊 **СТАТУС БОТА**
 
@@ -103,7 +104,7 @@ def status_bot(message):
 📋 **Информация:**
 • Бот запущен и работает
 • База данных: подключена ✅
-• Groq API: {groq_status}
+• PiAPI: {piapi_status}
 
 💡 **Команды управления:**
 /stop - остановить бота
@@ -133,6 +134,7 @@ def help_command(message):
 📊 Статистика - статистика
 💡 Предложить контент - сгенерировать пост для соцсетей
 ⚙️ Настройки - настройки бота
+🗂 Личный кабинет - расширенный профиль, пост в своём стиле, контент-план, история постов и статистика
 
 💡 **Как использовать:**
 1. Напиши /start
@@ -170,7 +172,7 @@ def handle_messages(message):
                 reply_markup=get_main_menu_keyboard()
             )
             return
-        
+
         # Обрабатываем выбор в меню
         if handle_menu_choice(message, bot):
             return
@@ -194,6 +196,11 @@ def handle_messages(message):
 
 # === ЗАПУСК БОТА ===
 if __name__ == '__main__':
+    from cabinet_service.runner import run as run_cabinet_service
+    cabinet_thread = threading.Thread(target=run_cabinet_service, daemon=True)
+    cabinet_thread.start()
+    print("🗂 Сервис личного кабинета запущен в фоне")
+
     print("🤖 БОТ ЗАПУЩЕН!")
     print("📋 Команды:")
     print("  /start   - начать работу")
@@ -202,7 +209,7 @@ if __name__ == '__main__':
     print("  /stop    - остановить бота")
     print("  /restart - перезапустить бота")
     print("✅ Используй кнопки для навигации")
-    
+
     try:
         bot.infinity_polling(timeout=30)
     except KeyboardInterrupt:

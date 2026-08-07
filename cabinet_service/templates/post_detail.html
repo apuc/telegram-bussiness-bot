@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Пост — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Пост</h1>
+<div class="card">
+    <div class="post-meta">
+        {{ platform_label(post.platform) }} · {{ post.created_at }}
+        {% if post.style %} · Стиль: {{ post.style }}{% endif %}
+    </div>
+    <div class="post-content" id="post-content-{{ post.id }}">{{ post.content }}</div>
+    {% if post.wishes %}
+    <div class="post-notes"><strong>Пожелания:</strong> {{ post.wishes }}</div>
+    {% endif %}
+</div>
+<div class="post-actions">
+    <button type="button" class="copy-btn" data-copy-target="post-content-{{ post.id }}">📋 Копировать</button>
+    <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Изменить</a>
+    <form method="post" action="/posts/{{ post.id }}/delete" class="inline-form"
+          onsubmit="return confirm('Удалить этот пост? Действие необратимо.');">
+        <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
+    </form>
+</div>
+<p><a href="/history">← Назад к истории</a></p>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Изменить пост — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Изменить пост</h1>
+<div class="card">
+    <p class="post-meta">{{ platform_label(post.platform) }} · {{ post.created_at }}</p>
+    <form method="post" action="/posts/{{ post.id }}/edit" class="form">
+        <label>Текст поста
+            <textarea name="content" rows="12" required>{{ post.content }}</textarea>
+        </label>
+        <div class="form-actions">
+            <button type="submit">💾 Сохранить</button>
+            <a class="button-link" href="/posts/{{ post.id }}">Отмена</a>
+        </div>
+    </form>
+</div>
+<p><a href="/history">← Назад к истории</a></p>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Профиль — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Редактировать профиль</h1>
+<form method="post" action="/profile/edit" class="form">
+    <label>Имя
+        <input type="text" name="name" value="{{ user.name }}" required>
+    </label>
+    <label>Телефон
+        <input type="text" name="phone" value="{{ user.phone }}" required>
+    </label>
+    <label>Вид бизнеса
+        <select name="business_type" required>
+            {% for key, value in business_types.items() %}
+            <option value="{{ key }}" {% if key == user.business_type|string %}selected{% endif %}>{{ value.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Описание бизнеса
+        <textarea name="description" rows="4" required>{{ user.description }}</textarea>
+    </label>
+    <button type="submit">Сохранить</button>
+</form>
+<p><a href="/dashboard">← Назад в кабинет</a></p>
+{% endblock %}

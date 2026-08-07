@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Сгенерировать пост — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Пост в своём стиле</h1>
+<form method="post" action="/generate" class="form">
+    <label>Платформа
+        <select name="platform" required>
+            {% for key, label in platforms %}
+            <option value="{{ key }}" {% if form and form.platform == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Стиль (например: дружелюбный, с юмором, экспертный)
+        <input type="text" name="style" value="{{ form.style if form else '' }}" required>
+    </label>
+    <label>Пожелания к посту
+        <textarea name="wishes" rows="3">{{ form.wishes if form else '' }}</textarea>
+    </label>
+    <button type="submit">Сгенерировать</button>
+</form>
+{% if result %}
+<h2>Готовый пост</h2>
+<div class="card result">{{ result }}</div>
+{% endif %}
+<p><a href="/dashboard">← Назад в кабинет</a></p>
+{% endblock %}

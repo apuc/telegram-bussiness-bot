@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Регистрация — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Регистрация</h1>
+<form method="post" action="/register" class="form">
+    <label>Имя
+        <input type="text" name="name" value="{{ form.name if form else '' }}" required>
+    </label>
+    <label>Телефон
+        <input type="text" name="phone" value="{{ form.phone if form else '' }}" required>
+    </label>
+    <label>Вид бизнеса
+        <select name="business_type" required>
+            <option value="" disabled {% if not form %}selected{% endif %}>Выбери вид бизнеса</option>
+            {% for key, value in business_types.items() %}
+            <option value="{{ key }}" {% if form and form.business_type == key %}selected{% endif %}>{{ value.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Описание бизнеса
+        <textarea name="description" rows="4" required>{{ form.description if form else '' }}</textarea>
+    </label>
+    <label>Email
+        <input type="email" name="email" value="{{ form.email if form else '' }}" required>
+    </label>
+    <label>Пароль
+        <input type="password" name="password" minlength="8" required>
+    </label>
+    <label>Повтори пароль
+        <input type="password" name="password_confirm" minlength="8" required>
+    </label>
+    <button type="submit">Зарегистрироваться</button>
+</form>
+<p>Уже есть аккаунт? <a href="/login">Войти</a></p>
+{% endblock %}

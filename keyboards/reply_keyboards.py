@@ -1,4 +1,4 @@
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 # === 9 ВИДОВ ПРЕДПРИНИМАТЕЛЕЙ ===
 BUSINESS_TYPES = {
@@ -21,8 +21,15 @@ def get_main_menu_keyboard():
         KeyboardButton("✏️ Обновить описание"),
         KeyboardButton("📊 Статистика"),
         KeyboardButton("💡 Предложить контент"),
-        KeyboardButton("⚙️ Настройки")
+        KeyboardButton("⚙️ Настройки"),
+        KeyboardButton("🗂 Личный кабинет")
     )
+    return keyboard
+
+def get_cabinet_link_keyboard(cabinet_web_url):
+    """Инлайн-кнопка со ссылкой на веб-версию личного кабинета"""
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("🌐 Открыть личный кабинет", url=cabinet_web_url))
     return keyboard
 
 def get_business_types_keyboard():

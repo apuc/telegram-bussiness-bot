@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Личный кабинет{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+    <script>
+        (function () {
+            function isDark() {
+                return document.documentElement.getAttribute('data-theme') === 'dark';
+            }
+            function setIcon(btn) {
+                if (btn) btn.textContent = isDark() ? '☀️' : '🌙';
+            }
+            try {
+                var saved = localStorage.getItem('theme');
+                // Тёмная тема по умолчанию: dark включается всегда, кроме явного выбора 'light'
+                if (saved !== 'light') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch (e) {}
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-theme-toggle]');
+                if (!btn) return;
+                if (isDark()) {
+                    document.documentElement.removeAttribute('data-theme');
+                    try { localStorage.setItem('theme', 'light'); } catch (e) {}
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    try { localStorage.setItem('theme', 'dark'); } catch (e) {}
+                }
+                setIcon(btn);
+            });
+            document.addEventListener('DOMContentLoaded', function () {
+                setIcon(document.querySelector('[data-theme-toggle]'));
+            });
+        })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="{{ '/dashboard' if user else '/login' }}">🗂 Личный кабинет</a>
+        <nav>
+            <button type="button" class="theme-toggle" data-theme-toggle aria-label="Переключить тему">🌙</button>
+            {% if user %}
+            <a href="/dashboard">Главная</a>
+            <a href="/generate">Пост</a>
+            <a href="/plan">Контент-план</a>
+            <a href="/history">История</a>
+            <a href="/images">Картинки</a>
+            <a href="/stats">Статистика</a>
+            <a href="/profile/edit">Профиль</a>
+            <form action="/logout" method="post" class="inline-form">
+                <button type="submit" class="link-button">Выйти</button>
+            </form>
+            </nav>
+            {% else %}
+            <a href="/login">Вход</a>
+            <a href="/register">Регистрация</a>
+            </nav>
+            {% endif %}
+    </header>
+
+    <main class="container">
+        {% if flash_message %}
+        <div class="flash">{{ flash_message }}</div>
+        {% endif %}
+        {% if errors %}
+        <div class="errors">
+            <ul>
+                {% for error in errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+        function copyText(text, btn) {
+            function done(ok) {
+                if (!btn) return;
+                var old = btn.textContent;
+                btn.textContent = ok ? '✅ Скопировано' : '❌ Ошибка';
+                setTimeout(function () { btn.textContent = old; }, 1500);
+            }
+            function fallback() {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                var ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                done(ok);
+            }
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+            } else {
+                fallback();
+            }
+        }
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-copy-target]');
+            if (!btn) return;
+            var el = document.getElementById(btn.getAttribute('data-copy-target'));
+            if (el) copyText(el.textContent, btn);
+        });
+    </script>
+</body>
+</html>

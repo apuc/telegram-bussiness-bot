@@ -1,28 +1,26 @@
 import random
 import os
-from groq import Groq
-from config import GROQ_API_KEY
+import json
+import requests
+from config import PIAPI_API_KEY, PIAPI_MODEL, get_proxies
+
+PIAPI_URL = "https://api.piapi.ai/v1/chat/completions"
 
 class ContentGenerator:
     def __init__(self):
         """Инициализация генератора контента"""
         print("🔄 Инициализация ContentGenerator...")
-        
-        # Проверяем, есть ли ключ Groq
-        if GROQ_API_KEY:
-            try:
-                self.client = Groq(api_key=GROQ_API_KEY)
-                self.model = "llama-3.3-70b-versatile"
-                self.use_groq = True
-                print("✅ Groq API подключен!")
-            except Exception as e:
-                print(f"⚠️ Ошибка подключения Groq: {e}")
-                self.use_groq = False
+
+        # Проверяем, есть ли ключ PiAPI
+        if PIAPI_API_KEY:
+            self.model = PIAPI_MODEL
+            self.use_piapi = True
+            print("✅ PiAPI подключен!")
         else:
-            print("⚠️ Groq API ключ не найден, использую шаблоны")
-            self.use_groq = False
+            print("⚠️ PiAPI ключ не найден, использую шаблоны")
+            self.use_piapi = False
         
-        # Шаблоны для запасного варианта (если Groq не работает)
+        # Шаблоны для запасного варианта (если PiAPI не работает)
         self.templates = {
             'instagram': [
                 "🔥 {business_name} — это не просто бизнес, это миссия!\n\n"
@@ -116,22 +114,22 @@ class ContentGenerator:
         """
         print(f"🔄 Генерация поста для {platform}...")
         
-        # Пробуем сгенерировать через Groq
-        if self.use_groq:
+        # Пробуем сгенерировать через PiAPI
+        if self.use_piapi:
             try:
-                post = self._generate_with_groq(business_type, business_description, platform)
+                post = self._generate_with_piapi(business_type, business_description, platform)
                 if post and len(post) > 20:
-                    print("✅ Пост сгенерирован через Groq!")
+                    print("✅ Пост сгенерирован через PiAPI!")
                     return post
             except Exception as e:
-                print(f"⚠️ Ошибка Groq: {e}, использую шаблоны")
-        
-        # Если Groq не работает - используем шаблоны
+                print(f"⚠️ Ошибка PiAPI: {e}, использую шаблоны")
+
+        # Если PiAPI не работает - используем шаблоны
         print("🔄 Использую шаблоны...")
         return self._generate_with_templates(business_type, business_description, platform)
-    
-    def _generate_with_groq(self, business_type, business_description, platform):
-        """Генерация через Groq API"""
+
+    def _generate_with_piapi(self, business_type, business_description, platform):
+        """Генерация через PiAPI (OpenAI-совместимый chat/completions)"""
         
         platform_names = {
             'instagram': 'Instagram',
@@ -160,18 +158,163 @@ class ContentGenerator:
 Пост должен быть уникальным и интересным.
 """
         
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": "Ты профессиональный копирайтер. Пиши ярко, полезно и вовлекающе."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.9,
-            max_tokens=500
+        response = requests.post(
+            PIAPI_URL,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {PIAPI_API_KEY}"
+            },
+            json={
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": "Ты профессиональный копирайтер. Пиши ярко, полезно и вовлекающе."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.9,
+                "max_tokens": 500
+            },
+            proxies=get_proxies(),
+            timeout=30
         )
-        
-        return response.choices[0].message.content.strip()
-    
+        response.raise_for_status()
+        data = response.json()
+
+        return data["choices"][0]["message"]["content"].strip()
+
+    def generate_post_with_style(self, business_type, business_description, platform, style, wishes):
+        """Генерирует пост с учётом стиля и пожеланий пользователя"""
+        print(f"🔄 Генерация поста в своём стиле для {platform}...")
+
+        if self.use_piapi:
+            try:
+                platform_names = {
+                    'instagram': 'Instagram',
+                    'linkedin': 'LinkedIn',
+                    'telegram': 'Telegram',
+                    'twitter': 'Twitter/X',
+                    'ad': 'рекламный пост'
+                }
+
+                prompt = f"""
+Ты — профессиональный SMM-специалист и копирайтер.
+
+Напиши пост для {platform_names.get(platform, 'соцсетей')} о бизнесе.
+
+Тип бизнеса: {business_type}
+Описание бизнеса: {business_description}
+Стиль поста: {style}
+Пожелания к посту: {wishes}
+
+Требования к посту:
+- Длина: 100-200 слов
+- Строго придерживайся указанного стиля и пожеланий
+- Призыв к действию в конце
+- Используй 2-3 эмодзи
+
+Напиши только текст поста, без лишних пояснений.
+"""
+
+                response = requests.post(
+                    PIAPI_URL,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {PIAPI_API_KEY}"
+                    },
+                    json={
+                        "model": self.model,
+                        "messages": [
+                            {"role": "system", "content": "Ты профессиональный копирайтер. Точно следуешь стилю и пожеланиям клиента."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "temperature": 0.9,
+                        "max_tokens": 500
+                    },
+                    proxies=get_proxies(),
+                    timeout=30
+                )
+                response.raise_for_status()
+                post = response.json()["choices"][0]["message"]["content"].strip()
+                if post and len(post) > 20:
+                    print("✅ Пост в стиле сгенерирован через PiAPI!")
+                    return post
+            except Exception as e:
+                print(f"⚠️ Ошибка PiAPI: {e}, использую шаблоны")
+
+        print("🔄 Использую шаблоны...")
+        post = self._generate_with_templates(business_type, business_description, platform)
+        return f"{post}\n\n💭 Пожелания учтены частично (без ИИ): {wishes}"
+
+    def generate_content_plan(self, business_type, business_description, days):
+        """Генерирует контент-план на несколько дней вперёд"""
+        print(f"🔄 Генерация контент-плана на {days} дн...")
+
+        if self.use_piapi:
+            try:
+                prompt = f"""
+Ты — SMM-стратег. Составь контент-план на {days} дней для бизнеса.
+
+Тип бизнеса: {business_type}
+Описание бизнеса: {business_description}
+
+Для каждого дня укажи платформу (instagram, linkedin, telegram, twitter или ad) и короткую идею поста (1 предложение).
+
+Верни ТОЛЬКО валидный JSON без пояснений в формате:
+{{"plan": [{{"day": 1, "platform": "instagram", "idea": "..."}}, ...]}}
+"""
+
+                response = requests.post(
+                    PIAPI_URL,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {PIAPI_API_KEY}"
+                    },
+                    json={
+                        "model": self.model,
+                        "messages": [
+                            {"role": "system", "content": "Ты отвечаешь только валидным JSON, без markdown и пояснений."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "temperature": 0.7,
+                        "max_tokens": 1000,
+                        "response_format": {"type": "json_object"}
+                    },
+                    proxies=get_proxies(),
+                    timeout=30
+                )
+                response.raise_for_status()
+                content = response.json()["choices"][0]["message"]["content"].strip()
+                parsed = json.loads(content)
+                plan = parsed.get("plan")
+                if plan:
+                    print("✅ Контент-план сгенерирован через PiAPI!")
+                    return plan
+            except Exception as e:
+                print(f"⚠️ Ошибка PiAPI: {e}, использую шаблонный план")
+
+        print("🔄 Использую шаблонный план...")
+        return self._generate_template_plan(business_type, days)
+
+    def _generate_template_plan(self, business_type, days):
+        """Простой контент-план без обращения к ИИ (запасной вариант)"""
+        platforms = ['instagram', 'linkedin', 'telegram', 'twitter', 'ad']
+        ideas = [
+            f"Расскажи историю успеха {business_type}",
+            f"Покажи закулисье работы {business_type}",
+            "Поделись отзывом клиента",
+            "Развенчай миф из твоей ниши",
+            "Дай практический совет подписчикам",
+            "Проведи опрос среди аудитории",
+            "Расскажи о новинке или акции"
+        ]
+        plan = []
+        for day in range(1, days + 1):
+            plan.append({
+                'day': day,
+                'platform': platforms[(day - 1) % len(platforms)],
+                'idea': ideas[(day - 1) % len(ideas)]
+            })
+        return plan
+
     def _generate_with_templates(self, business_type, business_description, platform):
         """Генерация через шаблоны (запасной вариант)"""
         

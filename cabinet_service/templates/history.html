@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}История постов — Личный кабинет{% endblock %}
+{% block content %}
+<h1>История постов</h1>
+{% if posts %}
+<ul class="post-list">
+    {% for post in posts %}
+    <li class="card">
+        <div class="post-meta">{{ platform_label(post.platform) }} · {{ post.created_at }}</div>
+        <div class="post-content" id="post-content-{{ post.id }}">{{ post.content }}</div>
+        <div class="post-actions">
+            <button type="button" class="copy-btn" data-copy-target="post-content-{{ post.id }}">📋 Копировать</button>
+            <a class="button-link" href="/posts/{{ post.id }}">👁 Открыть</a>
+            <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Изменить</a>
+            <form method="post" action="/posts/{{ post.id }}/delete" class="inline-form"
+                  onsubmit="return confirm('Удалить этот пост? Действие необратимо.');">
+                <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
+            </form>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="card">
+    <p>Постов пока нет.</p>
+    <p><a href="/generate">💡 Сгенерировать первый пост</a></p>
+</div>
+{% endif %}
+<p><a href="/dashboard">← Назад в кабинет</a></p>
+{% endblock %}

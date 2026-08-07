@@ -1,6 +1,7 @@
 from database import get_user, update_user_description
-from keyboards.reply_keyboards import get_main_menu_keyboard, get_settings_keyboard, get_content_keyboard, BUSINESS_TYPES
+from keyboards.reply_keyboards import get_main_menu_keyboard, get_settings_keyboard, get_content_keyboard, get_cabinet_link_keyboard, BUSINESS_TYPES
 from handlers.content import handle_content_generation
+from config import CABINET_WEB_URL
 
 def show_main_menu(user_id, bot):
     """Показывает главное меню"""
@@ -81,12 +82,21 @@ def handle_menu_choice(message, bot):
         return True
     
     # Обработка выбора платформы для контента
-    elif text in ["📝 Пост для Instagram", "💼 Пост для LinkedIn", 
-                  "📱 Пост для Telegram", "🧵 Пост для Twitter/X", 
+    elif text in ["📝 Пост для Instagram", "💼 Пост для LinkedIn",
+                  "📱 Пост для Telegram", "🧵 Пост для Twitter/X",
                   "🎯 Рекламный пост"]:
         handle_content_generation(message, bot, text)
         return True
-    
+
+    elif text == "🗂 Личный кабинет":
+        bot.send_message(
+            user_id,
+            "🗂 Полная версия личного кабинета теперь в браузере: профиль, "
+            "посты в своём стиле, контент-план, история и статистика.",
+            reply_markup=get_cabinet_link_keyboard(CABINET_WEB_URL)
+        )
+        return True
+
     return False
 
 def show_profile(message, bot):
