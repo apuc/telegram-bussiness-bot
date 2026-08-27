@@ -50,8 +50,5 @@ secrets/
 *.pem
 
 # Деплой
-deploy.sh
-nginx-setup.sh
-ssl-setup.sh
-dev.sh
-README.md
+# deploy.sh, nginx-setup.sh, ssl-setup.sh, dev.sh теперь коммитятся (не содержат секретов)
+# README.md оставлен в игноре (может содержать реальные данные)

@@ -17,7 +17,7 @@ mkdir -p $BACKUP_DIR
 # Создание архива
 cd $APP_DIR
 tar -czf $BACKUP_DIR/$BACKUP_NAME \
-    cabinet_service/users.db \
+    users.db \
     cabinet_service/media \
     --exclude='cabinet_service/media/*' \
     --exclude='venv' \

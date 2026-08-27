@@ -38,7 +38,7 @@ mkdir -p $APP_DIR/cabinet_service
 
 # Восстановление базы данных
 echo "Восстановление базы данных..."
-tar -xzf $BACKUP_DIR/$BACKUP_FILE -C $APP_DIR cabinet_service/users.db
+tar -xzf $BACKUP_DIR/$BACKUP_FILE -C $APP_DIR users.db
 
 # Восстановление медиа
 echo "Восстановление медиа..."
