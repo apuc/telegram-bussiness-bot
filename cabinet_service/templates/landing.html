@@ -247,6 +247,12 @@
                 text-align: center;
             }
         }
+
+        @media (max-width: 360px) {
+            /* На самых узких экранах скрываем текст бренда, оставляем иконку */
+            .brand span:not(.brand-icon) { display: none; }
+            .brand { gap: 0; }
+        }
     </style>
 </head>
 <body>
