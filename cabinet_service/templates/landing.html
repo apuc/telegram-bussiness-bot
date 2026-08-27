@@ -105,6 +105,44 @@
             font-size: 18px;
         }
         .header-actions { display: flex; align-items: center; gap: 12px; }
+
+        /* Бургер-меню (скрыто на десктопе) */
+        .burger {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0;
+        }
+        .burger-line {
+            display: block;
+            width: 20px;
+            height: 2px;
+            background: var(--text);
+            border-radius: 2px;
+            transition: transform .2s ease, opacity .2s ease;
+        }
+        .burger.open .burger-line:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .burger.open .burger-line:nth-child(2) { opacity: 0; }
+        .burger.open .burger-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+        .mobile-menu {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px 24px 16px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+        .mobile-menu.open { display: flex; }
+        .mobile-menu-link { text-align: center; }
         .btn {
             display: inline-block;
             padding: 10px 20px;
@@ -224,32 +262,21 @@
             .hero h1 { font-size: 32px; }
             .hero p { font-size: 17px; }
 
-            /* Адаптивный хедер для мобильных */
+            /* Адаптивный хедер для мобильных: бургер-меню */
             .header { padding: 12px 0; }
             .header-inner { gap: 8px; }
             .brand { gap: 8px; font-size: 16px; }
             .brand-icon { width: 28px; height: 28px; font-size: 16px; }
-            .header-actions { gap: 6px; }
-            .header-actions .btn { padding: 8px 12px; font-size: 14px; }
-            /* Скрываем текст кнопки "Войти", оставляем компактную */
-            .header-actions .btn-ghost:not(.theme-toggle) {
-                padding: 8px 10px;
-            }
+            .header-actions { gap: 8px; }
             .theme-toggle { padding: 8px 10px; }
+
+            /* Скрываем кнопки "Войти" и "Регистрация" из хедера, показываем бургер */
+            .header-login, .header-register { display: none; }
+            .burger { display: flex; }
         }
 
         @media (max-width: 400px) {
-            /* На очень узких экранах скрываем текст кнопки "Войти" */
-            .header-actions .btn-ghost:not(.theme-toggle) span { display: none; }
-            .header-actions .btn-ghost:not(.theme-toggle) {
-                width: 36px;
-                padding: 8px 0;
-                text-align: center;
-            }
-        }
-
-        @media (max-width: 360px) {
-            /* На самых узких экранах скрываем текст бренда, оставляем иконку */
+            /* На очень узких экранах скрываем текст бренда */
             .brand span:not(.brand-icon) { display: none; }
             .brand { gap: 0; }
         }
@@ -264,10 +291,19 @@
             </a>
             <div class="header-actions">
                 <button type="button" class="btn btn-ghost theme-toggle" data-theme-toggle aria-label="Переключить тему">🌙</button>
-                <a class="btn btn-ghost" href="/login"><span>Войти</span></a>
-                <a class="btn btn-primary" href="/register">Регистрация</a>
+                <a class="btn btn-ghost header-login" href="/login"><span>Войти</span></a>
+                <a class="btn btn-primary header-register" href="/register">Регистрация</a>
+                <button type="button" class="burger" id="burgerBtn" aria-label="Открыть меню" aria-expanded="false">
+                    <span class="burger-line"></span>
+                    <span class="burger-line"></span>
+                    <span class="burger-line"></span>
+                </button>
             </div>
         </div>
+        <nav class="mobile-menu" id="mobileMenu">
+            <a class="btn btn-ghost mobile-menu-link" href="/login"><span>Войти</span></a>
+            <a class="btn btn-primary mobile-menu-link" href="/register">Регистрация</a>
+        </nav>
     </header>
 
     <section class="hero">
@@ -373,6 +409,35 @@
             document.addEventListener('DOMContentLoaded', function () {
                 setIcon(document.querySelector('[data-theme-toggle]'));
             });
+
+            // Бургер-меню
+            var burgerBtn = document.getElementById('burgerBtn');
+            var mobileMenu = document.getElementById('mobileMenu');
+            if (burgerBtn && mobileMenu) {
+                function toggleMenu(force) {
+                    var isOpen = typeof force === 'boolean' ? force : !mobileMenu.classList.contains('open');
+                    mobileMenu.classList.toggle('open', isOpen);
+                    burgerBtn.classList.toggle('open', isOpen);
+                    burgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                    burgerBtn.setAttribute('aria-label', isOpen ? 'Закрыть меню' : 'Открыть меню');
+                }
+                burgerBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    toggleMenu();
+                });
+                // Закрытие при клике по ссылке в меню
+                mobileMenu.addEventListener('click', function (e) {
+                    if (e.target.closest('a')) toggleMenu(false);
+                });
+                // Закрытие при клике вне меню
+                document.addEventListener('click', function (e) {
+                    if (mobileMenu.classList.contains('open') &&
+                        !e.target.closest('.header-inner') &&
+                        !e.target.closest('.mobile-menu')) {
+                        toggleMenu(false);
+                    }
+                });
+            }
         })();
     </script>
 </body>
