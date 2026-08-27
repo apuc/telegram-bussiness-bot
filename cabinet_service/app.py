@@ -159,6 +159,12 @@ def root(request: Request):
     return render(request, "landing.html")
 
 
+@app.get("/presentation-tz")
+def presentation_tz(request: Request):
+    # Техническое задание на создание презентации сервиса
+    return render(request, "presentation_tz.html")
+
+
 # === РЕГИСТРАЦИЯ ===
 
 @app.get("/register")

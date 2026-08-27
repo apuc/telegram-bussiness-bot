@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ТЗ — Презентация сервиса «ИИ Пресс-секретарь»</title>
+    <meta name="description" content="Техническое задание на создание 10-слайдовой презентации сервиса ИИ Пресс-секретарь.">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-2: #273449;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #60a5fa;
+            --accent-hover: #93c5fd;
+            --accent-soft: #1e3a5f;
+            --border: #334155;
+            --border-strong: #475569;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+        /* Header */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--text);
+            text-decoration: none;
+        }
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: background .15s ease;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: var(--accent-soft); }
+
+        /* Content */
+        .content { padding: 48px 0 72px; }
+        .doc-title {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+        .doc-subtitle {
+            color: var(--text-muted);
+            font-size: 17px;
+            margin-bottom: 40px;
+        }
+
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px 28px;
+            margin-bottom: 24px;
+        }
+        .section h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin: 18px 0 8px;
+        }
+        .section p { color: var(--text-muted); margin-bottom: 10px; }
+        .section ul { padding-left: 20px; margin-bottom: 10px; }
+        .section li { color: var(--text-muted); margin-bottom: 6px; }
+        .section li strong { color: var(--text); }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+        .meta-item {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+        .meta-item .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .meta-item .value { font-weight: 600; }
+
+        /* Slides table */
+        .slides-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .slides-table th, .slides-table td {
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .slides-table th {
+            background: var(--surface-2);
+            font-weight: 600;
+            color: var(--text);
+        }
+        .slides-table td { color: var(--text-muted); }
+        .slides-table td:first-child { color: var(--accent); font-weight: 600; white-space: nowrap; }
+
+        .tag {
+            display: inline-block;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border-radius: 6px;
+            padding: 2px 10px;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 2px 4px 2px 0;
+        }
+
+        .footer {
+            padding: 24px 0;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        @media (max-width: 640px) {
+            .doc-title { font-size: 26px; }
+            .content { padding: 32px 0 48px; }
+            .section { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container header-inner">
+            <a class="brand" href="/">
+                <span class="brand-icon">🤖</span>
+                <span>ИИ Пресс-секретарь</span>
+            </a>
+            <a class="btn btn-ghost" href="/">На сайт</a>
+        </div>
+    </header>
+
+    <main class="content">
+        <div class="container">
+            <h1 class="doc-title">Техническое задание</h1>
+            <p class="doc-subtitle">На создание 10-слайдовой презентации сервиса «ИИ Пресс-секретарь»</p>
+
+            <div class="section">
+                <h2>📋 Общая информация</h2>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <div class="label">Название сервиса</div>
+                        <div class="value">ИИ Пресс-секретарь</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Домен</div>
+                        <div class="value">press.my-dpr.ru</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Формат</div>
+                        <div class="value">10 слайдов</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Тип</div>
+                        <div class="value">Продающая / имиджевая</div>
+                    </div>
+                </div>
+                <p><strong>Целевая аудитория:</strong> предприниматели, владельцы бизнеса, руководители организаций и сообществ, которые ведут Telegram-каналы и нуждаются в регулярном контенте.</p>
+            </div>
+
+            <div class="section">
+                <h2>🎯 Цель презентации</h2>
+                <p>Показать ценность сервиса «ИИ Пресс-секретарь» как комплексного решения для генерации и публикации контента в Telegram. Презентация должна:</p>
+                <ul>
+                    <li>Заинтересовать потенциального клиента и побудить зарегистрироваться</li>
+                    <li>Наглядно продемонстрировать ключевые возможности сервиса</li>
+                    <li>Показать простоту использования (4 шага)</li>
+                    <li>Вызвать доверие к сервису</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🎨 Требования к стилю и дизайну</h2>
+                <ul>
+                    <li><strong>Цветовая гамма:</strong> тёмная тема (тёмно-синий фон <code>#0f172a</code>, поверхности <code>#1e293b</code>), акцент — синий <code>#60a5fa</code> / <code>#2563eb</code>. Светлый текст <code>#e2e8f0</code>.</li>
+                    <li><strong>Стиль:</strong> современный, технологичный, чистый, минималистичный. Без перегруженности.</li>
+                    <li><strong>Шрифты:</strong> современные гротески (Inter, Manrope, Montserrat, Roboto).</li>
+                    <li><strong>Иконки:</strong> плоские, линейные, в едином стиле (можно эмодзи: ✍️ 🎨 📅 📣 🤖).</li>
+                    <li><strong>Изображения:</strong> сгенерированные иллюстрации в стиле сайта (робот-ассистент, элементы контент-маркетинга).</li>
+                    <li><strong>Язык:</strong> русский.</li>
+                    <li><strong>Формат слайдов:</strong> 16:9 (1920×1080).</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>📑 Структура презентации (10 слайдов)</h2>
+                <table class="slides-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Слайд</th>
+                            <th>Содержание</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>Титульный</strong></td>
+                            <td>Название «ИИ Пресс-секретарь», слоган «Умный контент для вашего бизнеса», краткое описание, кнопка «Начать бесплатно».</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>Проблема</strong></td>
+                            <td>Ведение соцсетей отнимает время: нет идей, дорого нанимать копирайтера и дизайнера, сложно поддерживать стиль, публикация вручную — рутина.</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>Решение</strong></td>
+                            <td>ИИ берёт на себя генерацию контента: посты, картинки, контент-план. Всё в одном кабинете, без копирайтера и дизайнера, публикация в один клик.</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>Ключевые возможности</strong></td>
+                            <td>4 блока: ✍️ Генерация постов, 🎨 Генерация картинок, 📅 Контент-план, 📣 Публикация в Telegram.</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>Медиа-образ</strong></td>
+                            <td>Уникальный медиа-образ бренда: опрос о бизнесе, ИИ формирует бренд-бук, все посты в едином стиле, импорт из Telegram/VK/Tenchat/Instagram.</td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong>Как это работает</strong></td>
+                            <td>4 шага: 1) Зарегистрируйтесь, 2) Опишите медиа-образ, 3) Генерируйте контент, 4) Публикуйте.</td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td><strong>Доп. возможности</strong></td>
+                            <td>Чат с ИИ для редактирования, статистика, несколько каналов, медиа-библиотека, адаптивный дизайн, экспорт бренд-бука в DOCX.</td>
+                        </tr>
+                        <tr>
+                            <td>8</td>
+                            <td><strong>Для кого</strong></td>
+                            <td>Предприниматели, руководители организаций, маркетологи, SMM-специалисты, блогеры, ведущие Telegram-каналы.</td>
+                        </tr>
+                        <tr>
+                            <td>9</td>
+                            <td><strong>Преимущества</strong></td>
+                            <td>Экономия времени и бюджета, единый стиль, регулярность публикаций, безопасность данных.</td>
+                        </tr>
+                        <tr>
+                            <td>10</td>
+                            <td><strong>Призыв к действию</strong></td>
+                            <td>«Готовы начать?» — кнопки «Зарегистрироваться» и «Войти в кабинет», ссылка на сайт.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>🛠️ Технические требования</h2>
+                <ul>
+                    <li>Формат: <strong>PPTX</strong> (PowerPoint) или <strong>PDF</strong></li>
+                    <li>Соотношение сторон: <strong>16:9</strong></li>
+                    <li>Текст краткий и читаемый (не более 5-6 пунктов на слайд)</li>
+                    <li>Единый стиль оформления на всех слайдах</li>
+                    <li>На каждом слайде — заголовок и основное содержание</li>
+                    <li>Допускаются иконки и иллюстрации для визуализации</li>
+                    <li>Финальный слайд — ссылки на регистрацию и вход</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🔗 Ключевые факты о сервисе</h2>
+                <p>Ссылки для использования в презентации:</p>
+                <p>
+                    <span class="tag">Сайт: press.my-dpr.ru</span>
+                    <span class="tag">Регистрация: /register</span>
+                    <span class="tag">Вход: /login</span>
+                    <span class="tag">Кабинет: /dashboard</span>
+                </p>
+                <h3>Основные функции</h3>
+                <ul>
+                    <li>Генерация постов, генерация картинок, контент-план</li>
+                    <li>Медиа-образ (бренд-бук), публикация в Telegram</li>
+                    <li>Статистика, чат с ИИ, подключение каналов</li>
+                </ul>
+                <h3>Поддерживаемые платформы для анализа</h3>
+                <p>Telegram, VK, Tenchat, Instagram</p>
+                <h3>Технологии</h3>
+                <p>Python, FastAPI, SQLite, ИИ (OpenAI GPT, PiAPI)</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            © 2026 ИИ Пресс-секретарь · <a href="/">На сайт</a> · <a href="/login">Вход</a> · <a href="/register">Регистрация</a>
+        </div>
+    </footer>
+</body>
+</html>
