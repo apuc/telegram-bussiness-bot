@@ -155,9 +155,8 @@ def health():
 
 @app.get("/")
 def root(request: Request):
-    if request.session.get("user_id"):
-        return RedirectResponse("/dashboard", status_code=303)
-    return RedirectResponse("/login", status_code=303)
+    # Посадочная страница с описанием сервиса
+    return render(request, "landing.html")
 
 
 # === РЕГИСТРАЦИЯ ===
