@@ -26,6 +26,9 @@ media/
 *.webp
 # Исключение: картинка для OpenGraph (og:image) должна быть в репозитории
 !cabinet_service/static/og-image.png
+# Исключение: изображения для презентации
+!deploy/presentation_images/**
+!deploy/presentation_images/*.png
 
 # Логи
 *.log
