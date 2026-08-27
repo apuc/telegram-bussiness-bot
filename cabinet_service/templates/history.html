@@ -1,13 +1,22 @@
 {% extends "base.html" %}
-{% block title %}История постов — Личный кабинет{% endblock %}
+{% block title %}Мои посты — Личный кабинет{% endblock %}
 {% block content %}
-<h1>История постов</h1>
+<h1>Мои посты</h1>
 {% if posts %}
 <ul class="post-list">
     {% for post in posts %}
     <li class="card">
-        <div class="post-meta">{{ platform_label(post.platform) }} · {{ post.created_at }}</div>
+        <div class="post-meta">{{ platform_label(post.platform) }} · {{ post.created_at }}
+            {% if post.published %} · ✅ Опубликован{% endif %}
+        </div>
         <div class="post-content" id="post-content-{{ post.id }}">{{ post.content }}</div>
+        {% if post.images %}
+        <div class="post-images">
+            {% for img in post.images %}
+            <img src="/media/{{ img.filename }}" class="post-thumb" alt="">
+            {% endfor %}
+        </div>
+        {% endif %}
         <div class="post-actions">
             <button type="button" class="copy-btn" data-copy-target="post-content-{{ post.id }}">📋 Копировать</button>
             <a class="button-link" href="/posts/{{ post.id }}">👁 Открыть</a>

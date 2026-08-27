@@ -23,6 +23,7 @@ media/
 *.png
 *.gif
 *.webp
+*.pdf
 
 # Логи
 *.log
@@ -48,10 +49,9 @@ secrets/
 *.key
 *.pem
 
-# OpenWork
-.opencode/
-
-# Временные файлы
-*.tmp
-*.bak
-*.orig
+# Деплой
+deploy.sh
+nginx-setup.sh
+ssl-setup.sh
+dev.sh
+README.md

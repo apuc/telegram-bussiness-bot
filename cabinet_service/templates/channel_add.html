@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Добавить канал — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Добавить канал</h1>
+<div class="card">
+  <p class="form-hint">
+    Введите <strong>@username</strong> канала/чата или числовой ID.<br>
+    Бот должен быть добавлен в админы канала, иначе публикация не сработает.
+  </p>
+</div>
+<form method="post" action="/channels/add" class="form">
+  <label>@username или ID
+    <input type="text" name="chat_input" value="{{ form.chat_input if form else '' }}"
+           placeholder="@my_channel или -1001234567890" required>
+  </label>
+  <button type="submit">Проверить и добавить</button>
+</form>
+<p><a href="/channels">← Назад к каналам</a></p>
+{% endblock %}

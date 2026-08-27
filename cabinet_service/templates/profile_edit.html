@@ -9,17 +9,18 @@
     <label>Телефон
         <input type="text" name="phone" value="{{ user.phone }}" required>
     </label>
-    <label>Вид бизнеса
-        <select name="business_type" required>
-            {% for key, value in business_types.items() %}
-            <option value="{{ key }}" {% if key == user.business_type|string %}selected{% endif %}>{{ value.name }}</option>
-            {% endfor %}
-        </select>
-    </label>
-    <label>Описание бизнеса
-        <textarea name="description" rows="4" required>{{ user.description }}</textarea>
-    </label>
     <button type="submit">Сохранить</button>
 </form>
+
+<div class="card">
+    <h2>Провайдер ИИ</h2>
+    {% if provider %}
+    <p><strong>Текущий:</strong> {{ provider_presets[provider.provider_type].name if provider.provider_type in provider_presets else provider.provider_type }}</p>
+    {% else %}
+    <p>Используются глобальные настройки (PiAPI).</p>
+    {% endif %}
+    <a href="/provider" class="copy-btn">⚙ Настроить провайдера</a>
+</div>
+
 <p><a href="/dashboard">← Назад в кабинет</a></p>
 {% endblock %}

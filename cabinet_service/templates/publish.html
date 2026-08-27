@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Опубликовать пост — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Публикация поста</h1>
+
+<div class="card">
+  <p><strong>Платформа:</strong> {{ platform_label(post.platform) }}</p>
+  <p><strong>Создан:</strong> {{ post.created_at }}</p>
+  {% if post.published %}
+  <p><strong>Статус:</strong> ✅ Опубликован в «{{ post.published_to }}» {{ post.published_at }}</p>
+  {% else %}
+  <p><strong>Статус:</strong> ⏳ Не опубликован</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Текст поста</h2>
+  <div class="result">{{ post.content }}</div>
+</div>
+
+{% if channels %}
+<form method="post" action="/posts/{{ post.id }}/publish" class="form">
+  <label>Канал для публикации
+    <select name="channel_id" required>
+      <option value="" disabled selected>Выберите канал или чат</option>
+      {% for ch in channels %}
+      <option value="{{ ch.id }}">{{ ch.title }} ({{ ch.chat_type }}){% if ch.username %} @{{ ch.username }}{% endif %}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">📤 Опубликовать</button>
+</form>
+{% else %}
+<div class="card">
+  <p>⚠️ Нет добавленных каналов. <a href="/channels/add">Добавьте канал →</a></p>
+</div>
+{% endif %}
+
+<div class="post-actions">
+  <a href="/posts/{{ post.id }}" class="copy-btn">← Назад к посту</a>
+  <a href="/channels" class="copy-btn">⚙ Управление каналами</a>
+</div>
+{% endblock %}

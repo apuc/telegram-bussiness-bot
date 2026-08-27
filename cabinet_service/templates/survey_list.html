@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Медиа-образы — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Медиа-образы</h1>
+<div class="post-actions" style="margin-bottom:15px">
+  <a class="tile" href="/survey">➕ Создать новый</a>
+  <a class="tile" href="/survey/import">📤 Загрузить из файла</a>
+</div>
+
+{% if surveys %}
+<table class="table">
+  <thead>
+    <tr><th>Название</th><th>Дата</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for s in surveys %}
+    <tr>
+      <td><a href="/surveys/{{ s.id }}">{{ s.title }}</a></td>
+      <td>{{ s.created_at }}</td>
+      <td>
+        <a href="/surveys/{{ s.id }}/export" class="button-link">📄 .docx</a>
+        <form action="/surveys/{{ s.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Удалить медиа-образ?')">
+          <button type="submit" class="button-link button-link-danger">🗑</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card">
+  <p>Пока нет ни одного медиа-образа. <a href="/survey">Создайте первый →</a></p>
+</div>
+{% endif %}
+{% endblock %}

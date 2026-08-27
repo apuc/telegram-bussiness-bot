@@ -24,6 +24,7 @@
         </div>
         <div class="plan-idea">{{ item.idea }}</div>
         <div class="post-actions">
+            <a href="/generate?plan_id={{ item.id }}&platform={{ item.platform }}&idea={{ item.idea | urlencode }}" class="copy-btn">✍️ Создать пост</a>
             <form method="post" action="/plan/{{ item.id }}/status" class="inline-form">
                 <select name="status" class="status-select">
                     <option value="planned" {% if item.status == 'planned' %}selected{% endif %}>📝 В плане</option>
@@ -47,12 +48,45 @@
 {% endif %}
 
 <h2>{% if plan %}Пересоставить план{% else %}Составить план{% endif %}</h2>
-<form method="post" action="/plan" class="form"
-      onsubmit="{% if plan %}return confirm('Новый план заменит текущий (отметки статусов сбросятся). Продолжить?');{% endif %}">
-    <label>На сколько дней (1-14)
-        <input type="number" name="days" min="1" max="14" value="7" required>
-    </label>
-    <button type="submit">📅 Составить план</button>
-</form>
+
+<div id="taskError" class="task-error"></div>
+
+<div id="taskLoader" class="task-loader">
+    <div class="spinner"></div>
+    <div class="task-loader-text">Составляю контент-план...</div>
+    <div class="task-loader-sub">Генерация занимает 20–60 секунд</div>
+</div>
+
+<div id="taskResult" class="task-result"></div>
+
+<div id="taskForm">
+    <form method="post" action="/plan" class="form" id="planForm" onsubmit="return startPlanGen(event)">
+        <label>На сколько дней (1-14)
+            <input type="number" name="days" min="1" max="14" value="7" required>
+        </label>
+        <input type="hidden" name="task_type" value="generate_plan">
+        <button type="submit">📅 Составить план</button>
+    </form>
+</div>
 <p><a href="/dashboard">← Назад в кабинет</a></p>
+
+<script>
+function startPlanGen(e) {
+    e.preventDefault();
+    var form = document.getElementById('planForm');
+    TaskEngine.start(form, {
+        loaderId: 'taskLoader',
+        formId: 'taskForm',
+        errorId: 'taskError',
+        resultId: 'taskResult',
+        onDone: function(result) {
+            var html = '<div class="card"><p>✅ План на ' + result.days + ' дн. составлен! (' + result.items + ' пунктов)</p>' +
+                '<p><a href="/plan" class="copy-btn">Обновить страницу →</a></p></div>';
+            document.getElementById('taskResult').innerHTML = html;
+            document.getElementById('taskResult').style.display = 'block';
+        }
+    });
+    return false;
+}
+</script>
 {% endblock %}

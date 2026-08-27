@@ -1,0 +1,660 @@
+﻿{% extends "base.html" %}
+{% block title %}Опрос медиа-образа — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Опрос для создания медиа-образа</h1>
+<p class="form-hint">Заполните поля по шагам. На последнем шаге можно сохранить и сгенерировать документ стратегии.</p>
+
+<!-- === АНАЛИЗ ПРОФИЛЯ СОЦСЕТИ === -->
+<div class="card" id="socialAnalyzer">
+  <h2 style="margin-top:0">🔍 Автозаполнение из профиля соцсети</h2>
+  <p class="form-hint">Вставьте ссылку на профиль или канал — ИИ проанализирует посты и заполнит поля медиа-образа. Поддерживается Telegram (автоматически), VK, Tenchat, Instagram (вручную).</p>
+
+  <div id="socialTaskError" class="task-error"></div>
+  <div id="socialTaskLoader" class="task-loader" style="display:none; padding:15px">
+    <div class="spinner"></div>
+    <div class="task-loader-text">Анализирую посты...</div>
+    <div class="task-loader-sub">Это может занять 20–60 секунд</div>
+  </div>
+  <div id="socialTaskResult" class="task-result" style="display:none"></div>
+
+  <div id="socialForm">
+    <label>Ссылка на профиль/канал
+      <input type="url" id="socialUrl" placeholder="https://t.me/channel, https://vk.com/username, https://tenchat.ru/username">
+    </label>
+
+    <div id="manualPostsSection" style="display:none">
+      <label>Тексты постов <span class="form-hint">Вставьте 3-10 постов. Разделяйте пустой строкой.</span>
+        <textarea id="manualPosts" rows="8" placeholder="Пост 1 текст...&#10;&#10;Пост 2 текст...&#10;&#10;Пост 3 текст..."></textarea>
+      </label>
+      <p class="form-hint" id="manualHint"></p>
+    </div>
+
+    <button type="button" class="copy-btn" onclick="startSocialAnalysis()" id="socialAnalyzeBtn">🔍 Анализировать профиль</button>
+  </div>
+</div>
+
+<script>
+document.getElementById('socialUrl').addEventListener('input', function() {
+  var url = this.value.trim().toLowerCase();
+  var isTG = /t\.me\//.test(url);
+  var section = document.getElementById('manualPostsSection');
+  var hint = document.getElementById('manualHint');
+  if (url && !isTG) {
+    section.style.display = '';
+    hint.textContent = 'Для VK, Tenchat и других платформ: откройте профиль, скопируйте 3-10 постов и вставьте сюда.';
+  } else {
+    section.style.display = 'none';
+  }
+});
+
+function startSocialAnalysis() {
+  var url = document.getElementById('socialUrl').value.trim();
+  if (!url) { alert('Вставьте ссылку на профиль'); return; }
+  var manualPosts = document.getElementById('manualPosts') ? document.getElementById('manualPosts').value : '';
+
+  var fd = new FormData();
+  fd.append('task_type', 'analyze_social_profile');
+  fd.append('url', url);
+  fd.append('manual_posts', manualPosts);
+
+  document.getElementById('socialForm').style.display = 'none';
+  document.getElementById('socialTaskLoader').style.display = 'flex';
+  document.getElementById('socialTaskError').style.display = 'none';
+  document.getElementById('socialTaskResult').style.display = 'none';
+
+  fetch('/api/tasks', {method: 'POST', body: fd})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var taskId = data.task_id;
+      var poll = setInterval(function() {
+        fetch('/api/tasks/' + taskId)
+          .then(function(r) { return r.json(); })
+          .then(function(t) {
+            if (t.status === 'done') {
+              clearInterval(poll);
+              document.getElementById('socialTaskLoader').style.display = 'none';
+              onSocialAnalysisDone(t.result);
+            } else if (t.status === 'error') {
+              clearInterval(poll);
+              document.getElementById('socialTaskLoader').style.display = 'none';
+              document.getElementById('socialTaskError').textContent = t.error || 'Ошибка анализа';
+              document.getElementById('socialTaskError').style.display = 'block';
+              document.getElementById('socialForm').style.display = '';
+            }
+          });
+      }, 1500);
+    })
+    .catch(function(e) {
+      document.getElementById('socialTaskLoader').style.display = 'none';
+      document.getElementById('socialTaskError').textContent = 'Ошибка сети: ' + e;
+      document.getElementById('socialTaskError').style.display = 'block';
+      document.getElementById('socialForm').style.display = '';
+    });
+}
+
+function onSocialAnalysisDone(result) {
+  var info = result.platform_info || {};
+  var count = result.posts_count || 0;
+  var html = '<div class="card"><p>✅ Проанализировано <strong>' + count + ' постов</strong> из ' + (info.platform || 'профиля') + ' (@' + (info.channel || '') + ')</p>';
+  html += '<button type="button" class="copy-btn" onclick="applySocialData()">✅ Применить к медиа-образу</button>';
+  html += ' <button type="button" class="button-link" onclick="resetSocialForm()">↩ Отмена</button></div>';
+  document.getElementById('socialTaskResult').innerHTML = html;
+  document.getElementById('socialTaskResult').style.display = '';
+  window._socialData = result;
+}
+
+function resetSocialForm() {
+  document.getElementById('socialForm').style.display = '';
+  document.getElementById('socialTaskResult').style.display = 'none';
+  document.getElementById('socialTaskResult').innerHTML = '';
+}
+
+function applySocialData() {
+  var d = window._socialData;
+  if (!d) return;
+  // Заполняем поля формы
+  setVal('client_name', d.client_name);
+  setVal('client_role', d.client_role);
+  setVal('brand_essence', d.brand_essence);
+  setVal('current_situation', d.current_situation);
+  setVal('positioning_who', d.positioning_who);
+  setVal('positioning_problem', d.positioning_problem);
+  setVal('positioning_result', d.positioning_result);
+  setVal('tov_description', d.tov_description);
+  setVal('tov_references', d.tov_references);
+  setVal('tov_axes', d.tov_axes);
+  setVal('prompt_directions', d.prompt_directions);
+  setVal('prompt_structure', d.prompt_structure);
+  setVal('prompt_formats', d.prompt_formats);
+  // Сворачиваем анализатор
+  document.getElementById('socialAnalyzer').style.display = 'none';
+  // Переходим к шагу 1
+  showStep(1);
+}
+
+function setVal(name, value) {
+  if (!value) return;
+  // AI может вернуть массив — превращаем в строки через перенос
+  if (Array.isArray(value)) {
+    value = value.join('\n');
+  }
+  var el = document.querySelector('[name="' + name + '"]');
+  if (el) {
+    el.value = value;
+    el.style.borderColor = 'var(--accent)';
+    setTimeout(function() { el.style.borderColor = ''; }, 2000);
+  }
+}
+</script>
+<!-- === КОНЕЦ АНАЛИЗАТОРА === -->
+
+<div class="survey-wizard">
+  <!-- Прогресс -->
+  <div class="survey-progress">
+    <div class="survey-progress-bar" id="progressBar"></div>
+  </div>
+  <div class="survey-steps-indicator" id="stepsIndicator"></div>
+
+  <form id="surveyForm">
+
+    <!-- Шаг 1: Основная информация -->
+    <div class="survey-step" data-step="1">
+      <h2>Шаг 1 — Основная информация</h2>
+      <div class="form">
+        <label>Тип медиа-образа
+          <select name="brand_type" id="brandType" onchange="toggleBrandType()">
+            <option value="personal">Личный бренд</option>
+            <option value="organization">Компания / бренд</option>
+            <option value="community">Общественная организация</option>
+          </select>
+        </label>
+
+        <!-- Личный бренд -->
+        <div id="fieldsPersonal">
+          <label>Имя клиента <input type="text" name="client_name" placeholder="Напр. Кирилл Бойко"></label>
+          <label>Профессия / роль <input type="text" name="client_role" placeholder="Напр. IT-эксперт, предприниматель"></label>
+        </div>
+
+        <!-- Организация -->
+        <div id="fieldsOrganization" style="display:none">
+          <label>Название организации <input type="text" name="org_name" placeholder="Напр. ТехноСтарт"></label>
+          <label>Сфера деятельности <input type="text" name="org_industry" placeholder="Напр. IT-консалтинг, разработка ПО"></label>
+          <label>Миссия организации <textarea name="org_mission" rows="2" placeholder="Напр. Помогаем бизнесу расти через технологии"></textarea></label>
+          <label>Ключевые продукты / услуги <textarea name="org_products" rows="2" placeholder="Напр. Разработка мобильных приложений, IT-аудит"></textarea></label>
+          <label>Количество сотрудников <input type="text" name="org_team_size" placeholder="Напр. 15-30"></label>
+          <label>Год основания <input type="text" name="org_founded" placeholder="Напр. 2018"></label>
+        </div>
+
+        <!-- Общественная организация -->
+        <div id="fieldsCommunity" style="display:none">
+          <label>Название организации <input type="text" name="org_name" placeholder="Напр. Сообщество молодых предпринимателей"></label>
+          <label>Сфера деятельности <input type="text" name="org_industry" placeholder="Напр. Бизнес-сообщество, поддержка молодых предпринимателей"></label>
+          <label>Миссия организации <textarea name="org_mission" rows="2" placeholder="Напр. Объединять молодых предпринимателей для обмена опытом и совместного роста"></textarea></label>
+          <label>Ключевые направления деятельности <textarea name="org_products" rows="2" placeholder="Напр. Мероприятия, менторство, нетворкинг, образовательные программы"></textarea></label>
+          <label>Количество участников <input type="text" name="org_team_size" placeholder="Напр. 200+"></label>
+          <label>Год основания <input type="text" name="org_founded" placeholder="Напр. 2022"></label>
+          <label>Формат участия <input type="text" name="org_format" placeholder="Напр. Бесплатное членство, ежемесячные встречи"></label>
+        </div>
+
+        <label>Город / регион <input type="text" name="client_location" placeholder="Напр. Донецк"></label>
+        <label>Описание текущей ситуации <textarea name="current_situation" rows="5" placeholder="Кто он/оно, чем занимается, какой уникальный опыт, текущий статус..."></textarea></label>
+      </div>
+    </div>
+
+    <!-- Шаг 2: Цели -->
+    <div class="survey-step" data-step="2" hidden>
+      <h2>Шаг 2 — Цели на 12 месяцев</h2>
+      <div class="form">
+        <label>Целевое число подписчиков <input type="number" name="goal_audience_number" placeholder="10000"></label>
+        <label>Основная платформа <input type="text" name="goal_audience_platform" placeholder="Напр. Telegram-канал"></label>
+        <label>Описание целевой аудитории <textarea name="goal_audience_description" rows="3" placeholder="Кто активная аудитория..."></textarea></label>
+        <label>Область экспертизы <input type="text" name="goal_expert_field" placeholder="Напр. цифровизация МСП"></label>
+        <label>Целевое кол-во приглашений на выступления в год <input type="number" name="goal_expert_speaking" placeholder="5"></label>
+        <label>Целевое кол-во заявок в месяц <input type="number" name="goal_commercial_leads" placeholder="5"></label>
+        <label>Какие услуги <textarea name="goal_commercial_services" rows="2" placeholder="Напр. IT-аудит, внедрение"></textarea></label>
+        <label>Описание контент-системы <textarea name="goal_content_system" rows="3" placeholder="Напр. Ежедневный контент-план на трёх столпах..."></textarea></label>
+      </div>
+    </div>
+
+    <!-- Шаг 3: Позиционирование -->
+    <div class="survey-step" data-step="3" hidden>
+      <h2>Шаг 3 — Позиционирование и УТП</h2>
+      <div class="form">
+        <label>Сущность бренда (одной строкой) <input type="text" name="brand_essence" placeholder="Напр. Цифровой архитектор, строящий IT-устойчивость бизнеса"></label>
+
+        <!-- Личный бренд -->
+        <div class="brand-fields-personal">
+          <label>Кому я помогаю? <textarea name="positioning_who" rows="2"></textarea></label>
+          <label>Какую проблему решаю? <textarea name="positioning_problem" rows="2"></textarea></label>
+          <label>Какой результат получает клиент? <textarea name="positioning_result" rows="2"></textarea></label>
+        </div>
+
+        <!-- Организация -->
+        <div class="brand-fields-organization" style="display:none">
+          <label>Какую проблему решает наш продукт/услуга? <textarea name="positioning_problem" rows="2"></textarea></label>
+          <label>Ценность для клиента <textarea name="positioning_result" rows="2" placeholder="Какую ценность получает клиент от нашей организации?"></textarea></label>
+          <label>Кому мы помогаем (целевой сегмент)? <textarea name="positioning_who" rows="2" placeholder="B2B / B2C, отрасли, размер бизнеса..."></textarea></label>
+          <label>Почему выбирают нас, а не конкурентов? <textarea name="positioning_difference" rows="2"></textarea></label>
+        </div>
+
+        <!-- Общественная организация -->
+        <div class="brand-fields-community" style="display:none">
+          <label>Какую проблему решает наше сообщество? <textarea name="positioning_problem" rows="2" placeholder="Изоляция молодых предпринимателей, отсутствие наставничества, слабый нетворкинг..."></textarea></label>
+          <label>Ценность для участника <textarea name="positioning_result" rows="2" placeholder="Что получает каждый участник сообщества?"></textarea></label>
+          <label>Для кого создано сообщество? <textarea name="positioning_who" rows="2" placeholder="Молодые предприниматели, стартаперы, начинающие бизнесмены..."></textarea></label>
+          <label>Чем отличаемся от других сообществ и ассоциаций? <textarea name="positioning_difference" rows="2"></textarea></label>
+          <label>Форматы взаимодействия <textarea name="community_formats" rows="2" placeholder="Митапы, оффлайн-встречи, онлайн-чаты, менторские сессии..."></textarea></label>
+        </div>
+
+        <label>УТП <textarea name="usp" rows="3" placeholder="Уникальное торговое предложение..."></textarea></label>
+      </div>
+    </div>
+
+    <!-- Шаг 4: Аудитории и каналы -->
+    <div class="survey-step" data-step="4" hidden>
+      <h2>Шаг 4 — Аудитории и каналы</h2>
+      <div class="form">
+        <label>Идеальные подписчики / клиенты <span class="form-hint">По строкам</span>
+          <textarea name="ideal_audiences" rows="5" placeholder="Владельцы МСП...&#10;IT-специалисты...&#10;Активная молодёжь..."></textarea>
+        </label>
+        <div>
+          <strong>Каналы коммуникации</strong>
+          <table class="table" id="channelsTable">
+            <thead><tr><th>Платформа</th><th>Тип</th><th>Частота</th><th>Описание</th><th></th></tr></thead>
+            <tbody id="channelsBody"></tbody>
+          </table>
+          <button type="button" class="copy-btn" onclick="addChannel()">+ Добавить канал</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Шаг 5: Визуальная идентичность -->
+    <div class="survey-step" data-step="5" hidden>
+      <h2>Шаг 5 — Визуальная идентичность</h2>
+      <div class="form">
+        <label>Концепция <input type="text" name="visual_concept" placeholder="Напр. Цифровой архитектор"></label>
+        <h3>Цветовая палитра</h3>
+        <label>Основной цвет — название <input type="text" name="color_main_name" placeholder="Напр. Глубокий антрацитово-синий"></label>
+        <label>Основной цвет — HEX <input type="text" name="color_main_hex" placeholder="#0A1A2F"></label>
+        <label>Акцент 1 — название <input type="text" name="color_accent1_name" placeholder="Напр. Электрический бирюзовый"></label>
+        <label>Акцент 1 — HEX <input type="text" name="color_accent1_hex" placeholder="#00E5CC"></label>
+        <label>Акцент 2 — название <input type="text" name="color_accent2_name" placeholder="Напр. Терракотовый"></label>
+        <label>Акцент 2 — HEX <input type="text" name="color_accent2_hex" placeholder="#FF6B4A"></label>
+        <label>Нейтральная база <input type="text" name="color_neutral" placeholder="Напр. Светло-серый, белый, графит"></label>
+        <h3>Типографика</h3>
+        <label>Заголовки <input type="text" name="typography_headings" placeholder="Напр. Montserrat / Gilroy"></label>
+        <label>Текст <input type="text" name="typography_body" placeholder="Напр. Open Sans / Inter"></label>
+        <label>Акценты <input type="text" name="typography_accents" placeholder="Напр. Roboto Mono"></label>
+      </div>
+    </div>
+
+    <!-- Шаг 6: Tone of Voice -->
+    <div class="survey-step" data-step="6" hidden>
+      <h2>Шаг 6 — Tone of Voice</h2>
+      <div class="form">
+        <label>Описание тона <input type="text" name="tov_description" placeholder="Напр. Стратег-прагматик с душой"></label>
+        <label>Референсы / вдохновители <textarea name="tov_references" rows="3" placeholder="Напр. Уверенность Лаврова, глубина Гео, яркость Минаева..."></textarea></label>
+        <label>Оси ToV <span class="form-hint">По строкам</span>
+          <textarea name="tov_axes" rows="4" placeholder="1) Энергичная уверенность&#10;2) Структурированная спонтанность&#10;3) Искренность&#10;4) Ответственный взгляд лидера"></textarea>
+        </label>
+      </div>
+    </div>
+
+    <!-- Шаг 7: Контент-стратегия -->
+    <div class="survey-step" data-step="7" hidden>
+      <h2>Шаг 7 — Контент-стратегия: Три столпа</h2>
+      <div class="form">
+        <!-- Личный бренд -->
+        <div class="brand-fields-personal">
+          <h3>Столп 1 — «Кто я» (Личность, Доверие)</h3>
+          <label>Название <input type="text" name="pillar1_name" value="Кто я"></label>
+        </div>
+        <div class="brand-fields-organization" style="display:none">
+          <h3>Столп 1 — «О продукте» (Компания, Доверие)</h3>
+          <label>Название <input type="text" name="pillar1_name" value="О продукте"></label>
+        </div>
+        <div class="brand-fields-community" style="display:none">
+          <h3>Столп 1 — «О миссии» (Сообщество, Ценности)</h3>
+          <label>Название <input type="text" name="pillar1_name" value="О миссии"></label>
+        </div>
+
+        <label>Цель <textarea name="pillar1_goal" rows="2" placeholder="Создать эмоциональную связь..."></textarea></label>
+        <label>Ключевые форматы <span class="form-hint">По строкам</span>
+          <textarea name="pillar1_formats" rows="3" class="pillar1-formats-hint" placeholder="История пути...&#10;Закулисье...&#10;Общественная деятельность..."></textarea>
+        </label>
+        <label>Частота <input type="text" name="pillar1_frequency" value="30%"></label>
+
+        <!-- Личный бренд -->
+        <div class="brand-fields-personal">
+          <h3>Столп 2 — «Решаю боль» (Экспертиза, Польза)</h3>
+          <label>Название <input type="text" name="pillar2_name" value="Решаю боль"></label>
+        </div>
+        <div class="brand-fields-organization" style="display:none">
+          <h3>Столп 2 — «Экспертиза» (Знания, Авторитет)</h3>
+          <label>Название <input type="text" name="pillar2_name" value="Экспертиза"></label>
+        </div>
+        <div class="brand-fields-community" style="display:none">
+          <h3>Столп 2 — «Мероприятия» (Активности, Результат)</h3>
+          <label>Название <input type="text" name="pillar2_name" value="Мероприятия"></label>
+        </div>
+
+        <label>Цель <textarea name="pillar2_goal" rows="2" placeholder="Закрепить статус эксперта..."></textarea></label>
+        <label>Ключевые форматы <span class="form-hint">По строкам</span>
+          <textarea name="pillar2_formats" rows="3" class="pillar2-formats-hint" placeholder="Экспертные разборы...&#10;Практические советы...&#10;Кейсы..."></textarea>
+        </label>
+        <label>Частота <input type="text" name="pillar2_frequency" value="50%"></label>
+
+        <!-- Личный бренд -->
+        <div class="brand-fields-personal">
+          <h3>Столп 3 — «Втягиваю» (Вовлечение, Диалог)</h3>
+          <label>Название <input type="text" name="pillar3_name" value="Втягиваю"></label>
+        </div>
+        <div class="brand-fields-organization" style="display:none">
+          <h3>Столп 3 — «Вовлечение» (Сообщество, Лояльность)</h3>
+          <label>Название <input type="text" name="pillar3_name" value="Вовлечение"></label>
+        </div>
+        <div class="brand-fields-community" style="display:none">
+          <h3>Столп 3 — «Участники» (Истории, Вовлечение)</h3>
+          <label>Название <input type="text" name="pillar3_name" value="Участники"></label>
+        </div>
+
+        <label>Цель <textarea name="pillar3_goal" rows="2" placeholder="Превратить пассивную аудиторию в активное сообщество..."></textarea></label>
+        <label>Ключевые форматы <span class="form-hint">По строкам</span>
+          <textarea name="pillar3_formats" rows="3" class="pillar3-formats-hint" placeholder="Опросы...&#10;Прямые эфиры...&#10;Интерактивные челленджи..."></textarea>
+        </label>
+        <label>Частота <input type="text" name="pillar3_frequency" value="20%"></label>
+
+        <label>Особые форматы <textarea name="special_formats" rows="2" placeholder="Напр. Живые видеокружочки..."></textarea></label>
+      </div>
+    </div>
+
+    <!-- Шаг 8: Воронка и продукты -->
+    <div class="survey-step" data-step="8" hidden>
+      <h2>Шаг 8 — Воронка и продуктовый ряд</h2>
+      <div class="form">
+        <h3>Воронка вовлечения</h3>
+        <div id="funnelContainer">
+          <!-- 5 этапов -->
+        </div>
+        <h3>Продуктовый ряд</h3>
+        <label>Входная точка (Lead Magnet) <textarea name="product_lead_magnet" rows="2" placeholder="Напр. Бесплатный PDF..."></textarea></label>
+        <label>Самая простая услуга <textarea name="product_simple" rows="2"></textarea></label>
+        <label>Услуга-конвертер <textarea name="product_converter" rows="2"></textarea></label>
+        <label>Комплексные решения <textarea name="product_complex" rows="2"></textarea></label>
+        <label>Экспертные продукты <textarea name="product_expert" rows="2"></textarea></label>
+      </div>
+    </div>
+
+    <!-- Шаг 9: Метрики -->
+    <div class="survey-step" data-step="9" hidden>
+      <h2>Шаг 9 — Метрики</h2>
+      <div class="form">
+        <label>Количественные метрики <span class="form-hint">По строкам, формат: Название | Целевое значение | Измерение</span>
+          <textarea name="metrics_quantitative" rows="5" placeholder="Подписчики в Telegram | 10000 | Статистика канала&#10;Ежемесячный охват | 250000 | Аналитика соцсетей"></textarea>
+        </label>
+        <label>Качественные метрики <span class="form-hint">Тот же формат</span>
+          <textarea name="metrics_qualitative" rows="5" placeholder="Уровень вовлеченности (ER) | > 7% | Формула&#10;Количество приглашений как спикера | 5-7 в год | Календарь"></textarea>
+        </label>
+        <label>Коммерческие метрики <span class="form-hint">Тот же формат</span>
+          <textarea name="metrics_commercial" rows="5" placeholder="Заявки с пометкой «от Кирилла» | 5 в месяц | CRM&#10;Конверсия из лида в продажу | 20% | Отчёт"></textarea>
+        </label>
+      </div>
+    </div>
+
+    <!-- Шаг 10: Риски и рекомендации -->
+    <div class="survey-step" data-step="10" hidden>
+      <h2>Шаг 10 — Риски и рекомендации</h2>
+      <div class="form">
+        <label>Потенциальные риски <span class="form-hint">По строкам, формат: Риск | Решение</span>
+          <textarea name="risks" rows="5" placeholder="Выгорание от ежедневного контента | Заранее создать банк контента...&#10;Конфликт образов | Связать через общую миссию..."></textarea>
+        </label>
+        <label>Рекомендации <span class="form-hint">По строкам</span>
+          <textarea name="recommendations" rows="5" placeholder="Быть консистентным...&#10;Делегировать техническую часть...&#10;Измерять и адаптироваться..."></textarea>
+        </label>
+      </div>
+    </div>
+
+    <!-- Шаг 11: Архетипы -->
+    <div class="survey-step" data-step="11" hidden>
+      <h2>Шаг 11 — Архетипический образ</h2>
+      <div class="form">
+        <h3>Ключевой архетип</h3>
+        <label>Название <input type="text" name="archetype_key_name" placeholder="Напр. Ведущий-Герой"></label>
+        <label>Суть <textarea name="archetype_key_essence" rows="3"></textarea></label>
+        <label>Проявления <span class="form-hint">По строкам</span>
+          <textarea name="archetype_key_manifestations" rows="5" placeholder="Миссия: ...&#10;Роли: ...&#10;Действия: ...&#10;Принцип: ...&#10;Визуальные коды: ..."></textarea>
+        </label>
+        <h3>Вспомогательные архетипы</h3>
+        <label>Вспомогательные архетипы <span class="form-hint">По строкам, формат: Название | Суть | Проявления</span>
+          <textarea name="archetype_supporting" rows="5" placeholder="Творец | Инноватор... | Создание экосистемы...&#10;Заботливый | Альтруист... | Помощь молодым..."></textarea>
+        </label>
+        <label>Синтез архетипов <textarea name="archetype_synthesis" rows="3" placeholder="Итоговый образ..."></textarea></label>
+        <label>Таблица проявлений <span class="form-hint">По строкам, формат: Ситуация | Архетип | Как выглядит</span>
+          <textarea name="archetype_table" rows="5" placeholder="Выступление на форуме | Ведущий-Герой | Чёткая структура...&#10;Разбор провала | Творец+Герой | Анализ ошибок..."></textarea>
+        </label>
+      </div>
+    </div>
+
+    <!-- Шаг 12: Промпт -->
+    <div class="survey-step" data-step="12" hidden>
+      <h2>Шаг 12 — Промпт для генерации контента</h2>
+      <div class="form">
+        <div class="brand-fields-personal">
+          <label>Контекст и личность <textarea name="prompt_context" rows="5" placeholder="Кто я, мой бренд, мои роли..."></textarea></label>
+        </div>
+        <div class="brand-fields-organization" style="display:none">
+          <label>Контекст организации <textarea name="prompt_context" rows="5" placeholder="Наша компания, миссия, ключевые ценности, роль в отрасли..."></textarea></label>
+        </div>
+        <div class="brand-fields-community" style="display:none">
+          <label>Контекст сообщества <textarea name="prompt_context" rows="5" placeholder="Миссия, ценности и форматы деятельности нашего сообщества..."></textarea></label>
+        </div>
+        <label>Tone of Voice <textarea name="prompt_tov" rows="4" placeholder="Мой голос — это..."></textarea></label>
+        <label>Структура мысли <textarea name="prompt_structure" rows="4" placeholder="Зацепка → Тезис → Аргументация → Личный угол → Призыв..."></textarea></label>
+        <label>Контент-направления <span class="form-hint">По строкам</span>
+          <textarea name="prompt_directions" rows="4" placeholder="IT и бизнес...&#10;Предпринимательство...&#10;Развитие региона...&#10;Личностное развитие..."></textarea>
+        </label>
+        <label>Форматы и шаблоны <textarea name="prompt_formats" rows="5" placeholder="Экспертный пост...&#10;Личный пост...&#10;Вовлекающий пост..."></textarea></label>
+        <label>Технические требования <textarea name="prompt_technical" rows="4" placeholder="Для Telegram: 3-7 абзацев..."></textarea></label>
+      </div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="survey-nav">
+      <button type="button" id="btnPrev" onclick="prevStep()" hidden>← Назад</button>
+      <span id="stepCounter"></span>
+      <button type="button" id="btnNext" onclick="nextStep()">Далее →</button>
+      <button type="submit" id="btnSubmit" hidden>💾 Сохранить и сгенерировать документ</button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+const TOTAL_STEPS = 12;
+let currentStep = 1;
+
+const FUNNEL_STAGES = [
+  {name: "Этап 0: ОСВЕДОМЛЕННОСТЬ", content: "", cta: ""},
+  {name: "Этап 1: ИНТЕРЕС", content: "", cta: ""},
+  {name: "Этап 2: РАССМОТРЕНИЕ", content: "", cta: ""},
+  {name: "Этап 3: РЕШЕНИЕ", content: "", cta: ""},
+  {name: "КЛИЕНТ (Покупка)", content: "", cta: ""},
+];
+
+// --- Переключение типа бренда ---
+function toggleBrandType() {
+  var type = document.getElementById("brandType").value;
+  var isPersonal = (type === "personal");
+  var isOrg = (type === "organization");
+  var isCommunity = (type === "community");
+
+  document.querySelectorAll(".brand-fields-personal").forEach(function(el) {
+    el.style.display = isPersonal ? "" : "none";
+  });
+  document.querySelectorAll(".brand-fields-organization").forEach(function(el) {
+    el.style.display = isOrg ? "" : "none";
+  });
+  document.querySelectorAll(".brand-fields-community").forEach(function(el) {
+    el.style.display = isCommunity ? "" : "none";
+  });
+  document.getElementById("fieldsPersonal").style.display = isPersonal ? "" : "none";
+  document.getElementById("fieldsOrganization").style.display = isOrg ? "" : "none";
+  document.getElementById("fieldsCommunity").style.display = isCommunity ? "" : "none";
+
+  updatePillarHints(type);
+}
+
+function updatePillarHints(type) {
+  var p1 = document.querySelector(".pillar1-formats-hint");
+  var p2 = document.querySelector(".pillar2-formats-hint");
+  var p3 = document.querySelector(".pillar3-formats-hint");
+  if (type === "community") {
+    if (p1) p1.placeholder = "Миссия сообщества...\\nИстория создания...\\nЦенности и принципы...";
+    if (p2) p2.placeholder = "Мероприятия и активности...\\nОбзоры встреч...\\nИтоги и анонсы...";
+    if (p3) p3.placeholder = "Истории участников...\\nОтзывы и кейсы...\\nПриглашения к участию...";
+  } else if (type === "organization") {
+    if (p1) p1.placeholder = "Обзор продукта...\\nКейсы клиентов...\\nНовинки компании...";
+    if (p2) p2.placeholder = "Экспертные статьи...\\nАналитика рынка...\\nРазборы технологий...";
+    if (p3) p3.placeholder = "Опросы...\\nРозыгрыши...\\nОтзывы клиентов...";
+  } else {
+    if (p1) p1.placeholder = "История пути...\\nЗакулисье...\\nОбщественная деятельность...";
+    if (p2) p2.placeholder = "Экспертные разборы...\\nПрактические советы...\\nКейсы...";
+    if (p3) p3.placeholder = "Опросы...\\nПрямые эфиры...\\nИнтерактивные челленджи...";
+  }
+}
+
+// --- Инициализация воронки ---
+function initFunnel() {
+  const container = document.getElementById("funnelContainer");
+  container.innerHTML = "";
+  FUNNEL_STAGES.forEach((stage, i) => {
+    container.innerHTML += `
+      <div class="funnel-stage">
+        <label><strong>${stage.name}</strong></label>
+        <label>Контент <input type="text" name="funnel_${i}_content" placeholder="Какой контент на этом этапе"></label>
+        <label>CTA <input type="text" name="funnel_${i}_cta" placeholder="Призыв к действию"></label>
+        <input type="hidden" name="funnel_${i}_name" value="${stage.name}">
+      </div>`;
+  });
+}
+
+// --- Динамические каналы ---
+let channelIdx = 0;
+function addChannel(platform = "", type = "", frequency = "", description = "") {
+  const tbody = document.getElementById("channelsBody");
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input type="text" name="channels_${channelIdx}_platform" value="${platform}" placeholder="Напр. Telegram-канал"></td>
+    <td><input type="text" name="channels_${channelIdx}_type" value="${type}" placeholder="Основной / доп."></td>
+    <td><input type="text" name="channels_${channelIdx}_frequency" value="${frequency}" placeholder="Напр. 1 пост в день"></td>
+    <td><input type="text" name="channels_${channelIdx}_description" value="${description}" placeholder="Описание"></td>
+    <td><button type="button" class="button-link button-link-danger" onclick="this.closest('tr').remove()">✕</button></td>`;
+  tbody.appendChild(tr);
+  channelIdx++;
+}
+
+// --- Навигация ---
+function showStep(n) {
+  document.querySelectorAll(".survey-step").forEach(el => el.hidden = true);
+  const el = document.querySelector(`.survey-step[data-step="${n}"]`);
+  if (el) el.hidden = false;
+  document.getElementById("btnPrev").hidden = (n === 1);
+  document.getElementById("btnNext").hidden = (n === TOTAL_STEPS);
+  document.getElementById("btnSubmit").hidden = (n !== TOTAL_STEPS);
+  document.getElementById("stepCounter").textContent = `Шаг ${n} из ${TOTAL_STEPS}`;
+  // Прогресс
+  const pct = ((n - 1) / (TOTAL_STEPS - 1)) * 100;
+  document.getElementById("progressBar").style.width = pct + "%";
+  // Индикатор
+  const ind = document.getElementById("stepsIndicator");
+  ind.innerHTML = "";
+  for (let i = 1; i <= TOTAL_STEPS; i++) {
+    const dot = document.createElement("span");
+    dot.className = "step-dot" + (i === n ? " active" : "") + (i < n ? " done" : "");
+    dot.textContent = i;
+    dot.onclick = () => showStep(i);
+    ind.appendChild(dot);
+  }
+  window.scrollTo(0, 0);
+}
+
+function nextStep() {
+  if (currentStep < TOTAL_STEPS) { currentStep++; showStep(currentStep); }
+}
+function prevStep() {
+  if (currentStep > 1) { currentStep--; showStep(currentStep); }
+}
+
+// --- Сборка данных ---
+function collectData() {
+  const fd = new FormData(document.getElementById("surveyForm"));
+  const data = {};
+  for (const [key, val] of fd.entries()) {
+    data[key] = val;
+  }
+  // Каналы
+  const channels = [];
+  for (let i = 0; i < channelIdx + 10; i++) {
+    const p = data[`channels_${i}_platform`];
+    if (p && p.trim()) {
+      channels.push({
+        platform: p,
+        type: data[`channels_${i}_type`] || "",
+        frequency: data[`channels_${i}_frequency`] || "",
+        description: data[`channels_${i}_description`] || "",
+      });
+    }
+  }
+  data["channels"] = channels;
+  // Воронка
+  const funnel = [];
+  for (let i = 0; i < FUNNEL_STAGES.length; i++) {
+    funnel.push({
+      name: data[`funnel_${i}_name`] || FUNNEL_STAGES[i].name,
+      content: data[`funnel_${i}_content`] || "",
+      cta: data[`funnel_${i}_cta`] || "",
+    });
+  }
+  data["funnel"] = funnel;
+  return data;
+}
+
+// --- Отправка ---
+document.getElementById("surveyForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const data = collectData();
+  var brandType = data.brand_type || "personal";
+  var title = (brandType === "organization")
+    ? (data.org_name || "Без названия")
+    : (data.client_name || "Без названия");
+  const btn = document.getElementById("btnSubmit");
+  btn.disabled = true;
+  btn.textContent = "⏳ Генерация...";
+  try {
+    const resp = await fetch("/survey/submit", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({title: title, data: data}),
+    });
+    if (resp.ok) {
+      const result = await resp.json();
+      window.location.href = "/surveys/" + result.id;
+    } else {
+      alert("Ошибка при сохранении: " + resp.status);
+      btn.disabled = false;
+      btn.textContent = "💾 Сохранить и сгенерировать документ";
+    }
+  } catch (err) {
+    alert("Ошибка сети: " + err);
+    btn.disabled = false;
+    btn.textContent = "💾 Сохранить и сгенерировать документ";
+  }
+});
+
+// --- Старт ---
+initFunnel();
+addChannel("Telegram-канал", "Основной", "1 пост в день", "Глубокий контент, экспертиза");
+addChannel("ВКвидео / Рутуб", "Доп.", "1 видео в неделю", "Длинные разборы, интервью");
+showStep(1);
+</script>
+{% endblock %}

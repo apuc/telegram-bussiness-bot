@@ -7,18 +7,443 @@
         {{ platform_label(post.platform) }} · {{ post.created_at }}
         {% if post.style %} · Стиль: {{ post.style }}{% endif %}
     </div>
-    <div class="post-content" id="post-content-{{ post.id }}">{{ post.content }}</div>
+    {% if post.published %}
+    <div class="post-meta" style="color: var(--success-text);">
+        ✅ Опубликован в «{{ post.published_to }}» · {{ post.published_at }}
+    </div>
+    {% endif %}
     {% if post.wishes %}
     <div class="post-notes"><strong>Пожелания:</strong> {{ post.wishes }}</div>
     {% endif %}
 </div>
+
+<!-- === ТЕКУЩИЙ ТЕКСТ ПОСТА === -->
+<div class="card" id="postCard">
+    <h2>📄 Текст поста</h2>
+    <div class="post-content" id="postContent">{{ post.content }}</div>
+    <div class="post-editor-actions" style="margin-top: 12px;">
+        <button type="button" class="copy-btn" onclick="copyPostText()">📋 Копировать</button>
+        <a class="copy-btn" href="/posts/{{ post.id }}/publish">📤 Опубликовать</a>
+        <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Редактировать вручную</a>
+    </div>
+</div>
+
+<!-- === ЧАТ С НЕЙРОСЕТЬЮ === -->
+<div class="card">
+    <h2>🤖 Редактировать с помощью ИИ</h2>
+    <p class="form-hint">Напишите, что нужно изменить — нейросеть перепишет пост. Например: «сократи вдвое», «сделай официальнее», «добавь призыв к действию».</p>
+
+    <!-- История чата -->
+    <div class="ai-chat" id="aiChat">
+        <div class="ai-chat-msg ai-chat-msg--system">
+            <div class="ai-chat-bubble ai-chat-bubble--system">Пост сгенерирован. Напишите инструкцию, чтобы изменить его.</div>
+        </div>
+    </div>
+
+    <!-- Лоадер -->
+    <div id="aiChatLoader" class="task-loader" style="display:none; padding: 15px;">
+        <div class="spinner"></div>
+        <div class="task-loader-text">Нейросеть переписывает пост...</div>
+    </div>
+    <div id="aiChatError" class="task-error"></div>
+
+    <!-- Поле ввода -->
+    <div class="ai-chat-input">
+        <textarea id="aiChatInput" class="ai-chat-textarea" rows="2"
+                  placeholder="Например: сократи вдвое, сделай веселее, добавь эмодзи..."
+                  onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendAiInstruction();}"></textarea>
+        <button type="button" class="copy-btn" onclick="sendAiInstruction()" id="aiChatSendBtn">→ Отправить</button>
+    </div>
+</div>
+
+<!-- === СКРИПТ ЧАТА === -->
+<script>
+var _currentPostContent = {{ post.content | tojson }};
+
+function copyPostText() {
+    navigator.clipboard.writeText(document.getElementById('postContent').textContent);
+}
+
+function sendAiInstruction() {
+    var input = document.getElementById('aiChatInput');
+    var instruction = input.value.trim();
+    if (!instruction) return;
+
+    var errEl = document.getElementById('aiChatError');
+    var loader = document.getElementById('aiChatLoader');
+    var sendBtn = document.getElementById('aiChatSendBtn');
+
+    errEl.style.display = 'none';
+    loader.style.display = 'flex';
+    sendBtn.disabled = true;
+    input.disabled = true;
+
+    // Добавляем сообщение пользователя в чат
+    addChatMsg('user', instruction);
+    input.value = '';
+
+    var fd = new FormData();
+    fd.append('task_type', 'modify_post');
+    fd.append('post_id', '{{ post.id }}');
+    fd.append('instruction', instruction);
+
+    fetch('/api/tasks', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) { showAiError(errEl, data.error, loader, sendBtn, input); return; }
+            pollModifyTask(data.task_id, errEl, loader, sendBtn, input, instruction);
+        })
+        .catch(function(e) { showAiError(errEl, 'Ошибка сети: ' + e, loader, sendBtn, input); });
+}
+
+function pollModifyTask(taskId, errEl, loader, sendBtn, input, instruction) {
+    fetch('/api/tasks/' + taskId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'running' || data.status === 'pending') {
+                setTimeout(function() { pollModifyTask(taskId, errEl, loader, sendBtn, input, instruction); }, 1500);
+                return;
+            }
+            loader.style.display = 'none';
+            sendBtn.disabled = false;
+            input.disabled = false;
+            input.focus();
+
+            if (data.status === 'error') {
+                showAiError(errEl, data.error || 'Ошибка модификации', null, null, null);
+                return;
+            }
+            if (data.status === 'done' && data.result) {
+                var newContent = data.result.content;
+                _currentPostContent = newContent;
+
+                // Обновляем текст поста на странице
+                document.getElementById('postContent').textContent = newContent;
+
+                // Добавляем ответ ИИ в чат
+                addChatMsg('ai', newContent, instruction);
+
+                // Убираем ошибку
+                errEl.style.display = 'none';
+            }
+        })
+        .catch(function(e) { showAiError(errEl, 'Ошибка сети: ' + e, null, null, null); });
+}
+
+function addChatMsg(role, text, instruction) {
+    var chat = document.getElementById('aiChat');
+    var now = new Date();
+    var dateStr = now.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+
+    var html = '';
+    if (role === 'user') {
+        html = '<div class="ai-chat-msg ai-chat-msg--user">' +
+            '<div class="ai-chat-bubble ai-chat-bubble--user">' + escH(text) + '</div>' +
+            '<div class="ai-chat-time">' + dateStr + '</div></div>';
+    } else {
+        var preview = text.substring(0, 200) + (text.length > 200 ? '…' : '');
+        var fullId = 'aifull-' + Date.now();
+        html = '<div class="ai-chat-msg ai-chat-msg--ai">' +
+            '<div class="ai-chat-meta">🤖 ИИ изменил пост по запросу: «' + escH(instruction || '') + '»</div>' +
+            '<div class="ai-chat-bubble ai-chat-bubble--ai">' +
+            '<div class="ai-chat-preview" id="aiprev-' + fullId + '">' + escH(preview) + '</div>' +
+            '<div class="ai-chat-full" id="' + fullId + '" style="display:none"><pre>' + escH(text) + '</pre></div>' +
+            '<button type="button" class="button-link" onclick="toggleAiFull(\'' + fullId + '\')" style="margin-top:6px;">Показать весь текст</button>' +
+            '</div>' +
+            '<div class="ai-chat-time">' + dateStr + '</div></div>';
+    }
+
+    chat.insertAdjacentHTML('beforeend', html);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function toggleAiFull(id) {
+    var prev = document.getElementById('aiprev-' + id);
+    var full = document.getElementById(id);
+    if (!prev || !full) return;
+    if (full.style.display === 'none') {
+        prev.style.display = 'none';
+        full.style.display = '';
+    } else {
+        full.style.display = 'none';
+        prev.style.display = '';
+    }
+}
+
+function showAiError(el, msg, loader, sendBtn, input) {
+    if (loader) loader.style.display = 'none';
+    if (sendBtn) { sendBtn.disabled = false; }
+    if (input) { input.disabled = false; input.focus(); }
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+function escH(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+</script>
+
+<!-- === ГАЛЕРЕЯ ИЗОБРАЖЕНИЙ === -->
+<div class="card">
+    <h2>🖼 Изображения</h2>
+    {% if images %}
+    <div class="media-grid">
+        {% for img in images %}
+        <div class="media-card">
+            <a href="/media/{{ img.filename }}" class="media-link" target="_blank">
+                <img src="/media/{{ img.filename }}" class="media-thumb" alt="">
+            </a>
+            <div class="media-body">
+                <span class="form-hint">{{ img.source }} · {{ img.created_at }}</span>
+                <form action="/posts/{{ post.id }}/images/{{ img.id }}/delete" method="post" class="inline-form"
+                      onsubmit="return confirm('Удалить изображение?')">
+                    <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="form-hint">Изображений пока нет.</p>
+    {% endif %}
+
+    <!-- Загрузка файлов -->
+    <h3>📎 Загрузить изображения</h3>
+    <form method="post" action="/posts/{{ post.id }}/images/upload" enctype="multipart/form-data" class="form">
+        <label>Файлы (можно несколько)
+            <input type="file" name="files" accept="image/*" multiple required>
+        </label>
+        <button type="submit">📎 Загрузить</button>
+    </form>
+
+    <!-- Генерация изображения -->
+    <h3>🎨 Сгенерировать изображение для поста</h3>
+    <div id="postImgError" class="task-error"></div>
+
+    <!-- Лоадер анализа -->
+    <div id="postImgAnalyzeLoader" class="task-loader" style="padding: 20px;">
+        <div class="spinner"></div>
+        <div class="task-loader-text">Анализирую пост...</div>
+        <div class="task-loader-sub">ИИ подбирает лучшие варианты</div>
+    </div>
+
+    <!-- Лоадер генерации -->
+    <div id="postImgGenLoader" class="task-loader" style="padding: 20px;">
+        <div class="spinner"></div>
+        <div class="task-loader-text">Генерирую изображение...</div>
+        <div class="task-loader-sub">Это может занять 15–60 секунд</div>
+    </div>
+
+    <div id="postImgResult" class="task-result"></div>
+
+    <!-- Шаг 1: Выбор концепции -->
+    <div id="postImgConceptsSection">
+        <p class="form-hint" style="margin-bottom: 10px;">ИИ проанализирует пост и предложит варианты:</p>
+        <button type="button" class="copy-btn" id="postImgAnalyzeBtn" onclick="startAnalyzeConcepts()">🤖 ИИ подберёт вариант</button>
+
+        <div style="margin-top: 12px;">
+            <p class="form-hint" style="margin-bottom: 8px;">Или выбери шаблон вручную:</p>
+            <div class="template-grid" id="postImgGrid">
+                {% for t in templates %}
+                <button type="button" class="template-card" data-key="{{ t.key }}"
+                        data-prompt="{{ t.prompt }}" data-style="{{ t.style }}" data-size="{{ t.size }}">
+                    <span class="template-icon">{{ t.icon }}</span>
+                    <span class="template-name">{{ t.name }}</span>
+                    <span class="template-hint">{{ t.hint }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Шаг 2: Концепции от ИИ (скрыт до анализа) -->
+    <div id="postImgConceptsList" style="display:none;">
+        <h4 style="margin-bottom: 10px;">Выбери вариант:</h4>
+        <div id="postImgConcepts" class="concept-grid"></div>
+        <button type="button" class="button-link" style="margin-top: 10px;" onclick="resetConcepts()">← Назад к шаблонам</button>
+    </div>
+
+    <!-- Скрытая форма для отправки -->
+    <form method="post" action="/posts/{{ post.id }}/images/generate" class="form" id="postImgForm" style="display:none;">
+        <input type="hidden" name="task_type" id="postImgTaskType" value="generate_post_image">
+        <input type="hidden" name="post_id" value="{{ post.id }}">
+        <input type="hidden" name="template_key" id="postImgTemplateKey" value="">
+        <input type="hidden" name="concept_prompt" id="postImgConceptPrompt" value="">
+        <input type="hidden" name="concept_style" id="postImgConceptStyle" value="">
+        <input type="hidden" name="concept_size" id="postImgConceptSize" value="">
+        <button type="submit" id="postImgSubmitBtn">🎨 Сгенерировать</button>
+    </form>
+
+    <script>
+    (function() {
+        var form = document.getElementById('postImgForm');
+        var grid = document.getElementById('postImgGrid');
+        if (!form || !grid) return;
+
+        // Клик по шаблону — сразу генерация
+        grid.addEventListener('click', function(e) {
+            var card = e.target.closest('.template-card');
+            if (!card) return;
+            grid.querySelectorAll('.template-card').forEach(function(c) { c.classList.remove('selected'); });
+            card.classList.add('selected');
+
+            document.getElementById('postImgTaskType').value = 'generate_post_image';
+            document.getElementById('postImgTemplateKey').value = card.dataset.key || '';
+            document.getElementById('postImgConceptPrompt').value = '';
+            document.getElementById('postImgConceptStyle').value = '';
+            document.getElementById('postImgConceptSize').value = '';
+
+            runPostImgGeneration('postImgConceptsSection');
+        });
+    })();
+
+    function startAnalyzeConcepts() {
+        var errEl = document.getElementById('postImgError');
+        var loader = document.getElementById('postImgAnalyzeLoader');
+        var section = document.getElementById('postImgConceptsSection');
+        var conceptsList = document.getElementById('postImgConceptsList');
+
+        errEl.style.display = 'none';
+        section.style.display = 'none';
+        conceptsList.style.display = 'none';
+        loader.style.display = 'flex';
+
+        var fd = new FormData();
+        fd.append('task_type', 'analyze_post_image');
+        fd.append('post_id', '{{ post.id }}');
+
+        fetch('/api/tasks', { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { showError(errEl, data.error, section, loader); return; }
+                pollAnalyze(data.task_id, errEl, loader, section, conceptsList);
+            })
+            .catch(function(err) { showError(errEl, 'Ошибка сети: ' + err.message, section, loader); });
+    }
+
+    function pollAnalyze(taskId, errEl, loader, section, conceptsList) {
+        fetch('/api/tasks/' + taskId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'running' || data.status === 'pending') {
+                    setTimeout(function() { pollAnalyze(taskId, errEl, loader, section, conceptsList); }, 1500);
+                    return;
+                }
+                loader.style.display = 'none';
+                if (data.status === 'error') { showError(errEl, data.error, section, null); return; }
+                if (data.status === 'done' && data.result && data.result.concepts) {
+                    showConcepts(data.result.concepts, conceptsList, section);
+                }
+            })
+            .catch(function(err) { showError(errEl, 'Ошибка сети: ' + err.message, section, null); });
+    }
+
+    function showConcepts(concepts, container, hiddenSection) {
+        var html = '';
+        concepts.forEach(function(c, i) {
+            var styleLabels = {photo:'Фото',illustration:'Иллюстрация',minimal:'Минимализм','3d':'3D',flat:'Плоская графика'};
+            var sizeLabels = {square:'Квадрат',wide:'Широкий',tall:'Вертикальный'};
+            html += '<button type="button" class="concept-card" onclick="selectConcept(' + i + ')">' +
+                '<div class="concept-title">' + escH(c.title) + '</div>' +
+                '<div class="concept-desc">' + escH(c.description) + '</div>' +
+                '<div class="concept-meta">' +
+                '<span class="concept-tag">' + (styleLabels[c.style] || c.style) + '</span> ' +
+                '<span class="concept-tag">' + (sizeLabels[c.size] || c.size) + '</span>' +
+                '</div></button>';
+        });
+        document.getElementById('postImgConcepts').innerHTML = html;
+        document.getElementById('postImgConceptsList').style.display = 'block';
+
+        // Сохраняем концепции для выбора
+        window._postImgConcepts = concepts;
+    }
+
+    function selectConcept(idx) {
+        var c = window._postImgConcepts[idx];
+        if (!c) return;
+
+        document.getElementById('postImgTaskType').value = 'generate_post_image_with_concept';
+        document.getElementById('postImgTemplateKey').value = '';
+        document.getElementById('postImgConceptPrompt').value = c.description;
+        document.getElementById('postImgConceptStyle').value = c.style || 'none';
+        document.getElementById('postImgConceptSize').value = c.size || 'wide';
+
+        runPostImgGeneration('postImgConceptsList');
+    }
+
+    function runPostImgGeneration(hideSectionId) {
+        var form = document.getElementById('postImgForm');
+        var hideSection = document.getElementById(hideSectionId);
+        var genLoader = document.getElementById('postImgGenLoader');
+
+        if (hideSection) hideSection.style.display = 'none';
+        genLoader.style.display = 'flex';
+
+        var fd = new FormData(form);
+        fetch('/api/tasks', { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) { showError(document.getElementById('postImgError'), data.error, hideSection, genLoader); return; }
+                pollGenerate(data.task_id);
+            })
+            .catch(function(err) { showError(document.getElementById('postImgError'), 'Ошибка сети: ' + err.message, hideSection, genLoader); });
+    }
+
+    function pollGenerate(taskId) {
+        var genLoader = document.getElementById('postImgGenLoader');
+        var errEl = document.getElementById('postImgError');
+
+        fetch('/api/tasks/' + taskId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'running' || data.status === 'pending') {
+                    setTimeout(function() { pollGenerate(taskId); }, 1500);
+                    return;
+                }
+                genLoader.style.display = 'none';
+                if (data.status === 'error') {
+                    showError(errEl, data.error, document.getElementById('postImgConceptsSection'), null);
+                    return;
+                }
+                if (data.status === 'done' && data.result) {
+                    var html = '<div class="media-grid"><div class="media-card">' +
+                        '<a href="/media/' + data.result.filename + '" class="media-link" target="_blank">' +
+                        '<img src="/media/' + data.result.filename + '" class="media-thumb" alt=""></a>' +
+                        '<div class="media-body"><span class="form-hint">generated · только что</span></div></div></div>' +
+                        '<p style="margin-top:10px;"><button type="button" class="copy-btn" onclick="resetConcepts()">← Ещё вариант</button> ' +
+                        '<a href="/images" class="copy-btn">В библиотеку →</a></p>';
+                    document.getElementById('postImgResult').innerHTML = html;
+                    document.getElementById('postImgResult').style.display = 'block';
+                }
+            })
+            .catch(function(err) { showError(errEl, 'Ошибка сети: ' + err.message, document.getElementById('postImgConceptsSection'), null); });
+    }
+
+    function resetConcepts() {
+        document.getElementById('postImgResult').style.display = 'none';
+        document.getElementById('postImgConceptsList').style.display = 'none';
+        document.getElementById('postImgConceptsSection').style.display = '';
+        document.getElementById('postImgError').style.display = 'none';
+        document.getElementById('postImgGenLoader').style.display = 'none';
+        document.getElementById('postImgAnalyzeLoader').style.display = 'none';
+    }
+
+    function showError(el, msg, showSection, hideLoader) {
+        if (hideLoader) hideLoader.style.display = 'none';
+        if (showSection) showSection.style.display = '';
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    function escH(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    </script>
+</div>
+
 <div class="post-actions">
-    <button type="button" class="copy-btn" data-copy-target="post-content-{{ post.id }}">📋 Копировать</button>
-    <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Изменить</a>
+    <a class="copy-btn" href="/posts/{{ post.id }}/publish">📤 Опубликовать</a>
+    <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Полное редактирование</a>
     <form method="post" action="/posts/{{ post.id }}/delete" class="inline-form"
           onsubmit="return confirm('Удалить этот пост? Действие необратимо.');">
         <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
     </form>
 </div>
-<p><a href="/history">← Назад к истории</a></p>
+<p><a href="/history">← Назад к постам</a></p>
 {% endblock %}

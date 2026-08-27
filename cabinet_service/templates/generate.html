@@ -2,25 +2,99 @@
 {% block title %}Сгенерировать пост — Личный кабинет{% endblock %}
 {% block content %}
 <h1>Пост в своём стиле</h1>
-<form method="post" action="/generate" class="form">
-    <label>Платформа
-        <select name="platform" required>
-            {% for key, label in platforms %}
-            <option value="{{ key }}" {% if form and form.platform == key %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </label>
-    <label>Стиль (например: дружелюбный, с юмором, экспертный)
-        <input type="text" name="style" value="{{ form.style if form else '' }}" required>
-    </label>
-    <label>Пожелания к посту
-        <textarea name="wishes" rows="3">{{ form.wishes if form else '' }}</textarea>
-    </label>
-    <button type="submit">Сгенерировать</button>
-</form>
+
+{% if latest_survey %}
+<div class="card">
+    <p><strong>Медиа-образ:</strong> <a href="/surveys/{{ latest_survey.id }}">{{ latest_survey.title }}</a></p>
+    <p class="form-hint">Пост сгенерируется на основе этого медиа-образа (личность, УТП, Tone of Voice, структура мысли).</p>
+</div>
+{% else %}
+<div class="card">
+    <p>⚠️ Медиа-образ не найден. Посты генерируются на основе медиа-образа.</p>
+    <a href="/survey" class="copy-btn">➕ Создать медиа-образ</a>
+</div>
+{% endif %}
+
+<div id="taskError" class="task-error"></div>
+
+<div id="taskLoader" class="task-loader">
+    <div class="spinner"></div>
+    <div class="task-loader-text">Генерирую пост...</div>
+    <div class="task-loader-sub">Это может занять 15–60 секунд</div>
+</div>
+
+<div id="taskResult" class="task-result"></div>
+
+<div id="taskForm">
+    <form method="post" action="/generate" class="form" id="generateForm" onsubmit="return startPostGen(event)">
+        {% if surveys and surveys|length > 1 %}
+        <label>Медиа-образ
+            <select name="survey_id">
+                <option value="">Последний (по умолчанию)</option>
+                {% for s in surveys %}
+                <option value="{{ s.id }}">{{ s.title }} ({{ s.created_at }})</option>
+                {% endfor %}
+            </select>
+        </label>
+        {% endif %}
+        <label>Платформа
+            <select name="platform" required>
+                {% for key, label in platforms %}
+                <option value="{{ key }}" {% if (prefill and prefill.platform == key) or (form and form.platform == key) %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Стиль (например: дружелюбный, с юмором, экспертный)
+            <input type="text" name="style" value="{{ form.style if form else '' }}" required>
+        </label>
+        <label>Пожелания к посту
+            <textarea name="wishes" rows="3">{{ prefill.idea if prefill else (form.wishes if form else '') }}</textarea>
+        </label>
+        <input type="hidden" name="task_type" value="generate_post">
+        {% if prefill %}<input type="hidden" name="plan_id" value="{{ prefill.plan_id }}">{% endif %}
+        <button type="submit" {% if not latest_survey %}disabled{% endif %}>Сгенерировать</button>
+    </form>
+</div>
+
 {% if result %}
 <h2>Готовый пост</h2>
 <div class="card result">{{ result }}</div>
+<div class="post-actions">
+    <button type="button" class="copy-btn" data-copy-target="post-text">📋 Копировать</button>
+</div>
+<div id="post-text" hidden>{{ result }}</div>
 {% endif %}
 <p><a href="/dashboard">← Назад в кабинет</a></p>
+
+<script>
+function startPostGen(e) {
+    e.preventDefault();
+    var form = document.getElementById('generateForm');
+    TaskEngine.start(form, {
+        loaderId: 'taskLoader',
+        formId: 'taskForm',
+        errorId: 'taskError',
+        resultId: 'taskResult',
+        onDone: function(result) {
+            var html = '<h2>Готовый пост</h2>' +
+                '<div class="card result">' + escHtml(result.content) + '</div>' +
+                '<div class="post-actions">' +
+                '<button type="button" class="copy-btn" onclick="copyText(\'' + escAttr(result.content).replace(/'/g, "\\'") + '\', this)">📋 Копировать</button>' +
+                ' <a href="/posts/' + result.post_id + '" class="copy-btn">Открыть пост →</a>' +
+                '</div>';
+            document.getElementById('taskResult').innerHTML = html;
+            document.getElementById('taskResult').style.display = 'block';
+        }
+    });
+    return false;
+}
+function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+}
+function escAttr(s) {
+    return (s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n');
+}
+</script>
 {% endblock %}

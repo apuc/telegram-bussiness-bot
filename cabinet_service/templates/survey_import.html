@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Загрузить медиа-образ — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Загрузить медиа-образ</h1>
+
+<div class="card">
+  <p>Загрузите готовый медиа-образ файлом — он будет автоматически разобран и сохранён.</p>
+  <p class="form-hint">Поддерживаются два формата:</p>
+  <ul>
+    <li><strong>.docx</strong> — документ стратегии (как образец). Разбирается через ИИ: извлекаются личность, УТП, Tone of Voice, столпы контента, архетипы и все поля опроса.</li>
+    <li><strong>.json</strong> — структурированные данные опроса (прямой импорт полей).</li>
+  </ul>
+</div>
+
+<form method="post" action="/survey/import" enctype="multipart/form-data" class="form">
+  <label>Файл медиа-образа
+    <input type="file" name="file" accept=".docx,.json" required>
+  </label>
+  <button type="submit">📤 Загрузить</button>
+</form>
+
+<div class="post-actions">
+  <a href="/survey" class="copy-btn">➕ Заполнить форму вручную</a>
+  <a href="/surveys" class="copy-btn">← К списку медиа-образов</a>
+</div>
+{% endblock %}

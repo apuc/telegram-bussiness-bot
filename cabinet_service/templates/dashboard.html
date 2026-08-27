@@ -4,15 +4,36 @@
 <h1>Привет, {{ user.name }}!</h1>
 <div class="card">
     <p><strong>Телефон:</strong> {{ user.phone }}</p>
-    <p><strong>Вид бизнеса:</strong> {{ business_name }}</p>
-    <p><strong>Описание:</strong> {{ user.description }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
     <p><strong>В кабинете с:</strong> {{ user.created_at }}</p>
 </div>
+
+<div class="card">
+    <h2>Медиа-образ</h2>
+    {% if latest_survey %}
+    <p><strong>Активный:</strong> <a href="/surveys/{{ latest_survey.id }}">{{ latest_survey.title }}</a></p>
+    <p class="form-hint">Посты генерируются на основе этого медиа-образа.</p>
+    <div class="post-actions">
+        <a href="/surveys/{{ latest_survey.id }}" class="copy-btn">Открыть</a>
+        <a href="/survey" class="copy-btn">➕ Создать новый</a>
+        <a href="/survey/import" class="copy-btn">📤 Загрузить из файла</a>
+    </div>
+    {% else %}
+    <p>Медиа-образ ещё не создан. Создайте его — посты будут генерироваться на его основе.</p>
+    <div class="post-actions">
+        <a href="/survey" class="copy-btn">➕ Создать медиа-образ</a>
+        <a href="/survey/import" class="copy-btn">📤 Загрузить из файла</a>
+    </div>
+    {% endif %}
+</div>
+
 <div class="grid">
     <a class="tile" href="/generate">💡 Сгенерировать пост</a>
     <a class="tile" href="/plan">📅 Контент-план</a>
-    <a class="tile" href="/history">📜 История постов</a>
+    <a class="tile" href="/history">📜 Мои посты</a>
     <a class="tile" href="/images">🖼 Медиа-библиотека</a>
+    <a class="tile" href="/channels">📢 Каналы публикации</a>
+    <a class="tile" href="/surveys">📋 Мои медиа-образы</a>
     <a class="tile" href="/stats">📈 Статистика</a>
     <a class="tile" href="/profile/edit">✏️ Редактировать профиль</a>
     <a class="tile tile-danger" href="/delete-account">🗑 Удалить аккаунт</a>

@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Провайдеры ИИ — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Провайдеры ИИ</h1>
+<p class="form-hint">Настройте провайдеров для генерации текста и изображений независимо. API ключи хранятся только у вас.</p>
+
+{% if provider %}
+<div class="card">
+  <p class="form-hint" style="margin:0">
+    <strong>Текст:</strong> {{ provider_presets[provider.text_provider_type].name if provider.text_provider_type in provider_presets else provider.text_provider_type }} → {{ provider.text_model }}
+    &nbsp;|&nbsp;
+    <strong>Изображения:</strong>
+    {% if provider.image_api_key %}
+      {{ provider_presets[provider.image_provider_type].name if provider.image_provider_type in provider_presets else provider.image_provider_type }} → {{ provider.image_model or '(не указана)' }}
+    {% else %}
+      <em>глобальный PiAPI</em>
+    {% endif %}
+    &nbsp;<span class="form-hint">· {{ provider.updated_at }}</span>
+  </p>
+</div>
+{% else %}
+<div class="card">
+  <p style="margin:0">Используются глобальные настройки (PiAPI из .env). Настройте свои провайдеры для независимости.</p>
+</div>
+{% endif %}
+
+<!-- Табы -->
+<div class="provider-tabs">
+  <button type="button" class="provider-tab active" onclick="switchTab('text')">✍️ Генерация текста</button>
+  <button type="button" class="provider-tab" onclick="switchTab('image')">🎨 Генерация изображений</button>
+</div>
+
+<form method="post" action="/provider" class="form" id="providerForm">
+
+  <!-- === ТАБ: ТЕКСТ === -->
+  <div class="provider-tab-content active" id="tabText">
+    <h2>✍️ Генерация текста</h2>
+    <label>Провайдер
+      <select name="text_provider_type" id="textProviderType" required onchange="updatePresets('text')">
+        <option value="" disabled {% if not provider and not form %}selected{% endif %}>Выберите провайдера</option>
+        {% for key, preset in provider_presets.items() %}
+        <option value="{{ key }}"
+          {% if (provider and provider.text_provider_type == key) or (form and form.text_provider_type == key) %}selected{% endif %}>
+          {{ preset.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>API ключ
+      <input type="password" name="text_api_key" id="textApiKey"
+        value="{{ form.text_api_key if form else '' }}"
+        placeholder="Ваш API ключ">
+    </label>
+    <label style="flex-direction: row; align-items: center; gap: 8px;">
+      <input type="checkbox" name="text_use_global" value="1" id="textUseGlobal"
+        onchange="toggleGlobal('text')">
+      <span>Использовать глобальные настройки (PiAPI из .env)</span>
+    </label>
+
+    <label>Base URL
+      <input type="text" name="text_base_url" id="textBaseUrl"
+        value="{{ form.text_base_url if form else (provider.text_base_url if provider else '') }}"
+        placeholder="https://...">
+    </label>
+
+    <label>Модель
+      <input type="text" name="text_model" id="textModel"
+        value="{{ form.text_model if form else (provider.text_model if provider else '') }}"
+        placeholder="напр. gpt-4o, glm-5.2, claude-sonnet-5">
+    </label>
+
+    <div class="card" style="margin-top:15px; background: var(--bg-secondary);">
+      <p style="margin:0; font-size: 13px;"><strong>Популярные модели для текста:</strong></p>
+      <ul style="margin:5px 0 0 18px; font-size: 13px;">
+        <li><code>gpt-4o</code> — OpenAI, OpenRouter, PiAPI</li>
+        <li><code>claude-sonnet-5</code> — Anthropic через OpenRouter</li>
+        <li><code>glm-5.2</code> — OpenCode Zen (платная)</li>
+        <li><code>deepseek-v4-flash-free</code> — OpenCode Zen (бесплатная)</li>
+        <li><code>hy3-free</code> — OpenCode Zen (бесплатная, reasoning)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- === ТАБ: ИЗОБРАЖЕНИЯ === -->
+  <div class="provider-tab-content" id="tabImage">
+    <h2>🎨 Генерация изображений</h2>
+    <label>Провайдер
+      <select name="image_provider_type" id="imageProviderType" required onchange="updatePresets('image')">
+        <option value="" disabled {% if not provider and not form %}selected{% endif %}>Выберите провайдера</option>
+        {% for key, preset in provider_presets.items() %}
+        {% if preset.supports_images %}
+        <option value="{{ key }}"
+          {% if (provider and provider.image_provider_type == key) or (form and form.image_provider_type == key) %}selected{% endif %}>
+          {{ preset.name }}
+        </option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>API ключ
+      <input type="password" name="image_api_key" id="imageApiKey"
+        value="{{ form.image_api_key if form else '' }}"
+        placeholder="Ваш API ключ">
+    </label>
+    <label style="flex-direction: row; align-items: center; gap: 8px;">
+      <input type="checkbox" name="image_use_global" value="1" id="imageUseGlobal"
+        onchange="toggleGlobal('image')">
+      <span>Использовать глобальные настройки (PiAPI из .env)</span>
+    </label>
+
+    <label>Base URL
+      <input type="text" name="image_base_url" id="imageBaseUrl"
+        value="{{ form.image_base_url if form else (provider.image_base_url if provider else '') }}"
+        placeholder="https://...">
+    </label>
+
+    <label>Модель
+      <input type="text" name="image_model" id="imageModel"
+        value="{{ form.image_model if form else (provider.image_model if provider else '') }}"
+        placeholder="напр. gpt-image-1, dall-e-3">
+    </label>
+
+    <div class="card" style="margin-top:15px; background: var(--bg-secondary);">
+      <p style="margin:0; font-size: 13px;"><strong>Популярные модели для изображений:</strong></p>
+      <ul style="margin:5px 0 0 18px; font-size: 13px;">
+        <li><code>gpt-image-1</code> — OpenAI, PiAPI (рекомендуется)</li>
+        <li><code>gpt-image-1-mini</code> — OpenAI (быстрая, дешевле)</li>
+        <li><code>dall-e-3</code> — OpenAI (старая, через прямой API)</li>
+      </ul>
+    </div>
+  </div>
+
+  <button type="submit">Сохранить настройки</button>
+</form>
+
+<p style="margin-top:20px"><a href="/profile/edit">← Назад в профиль</a> · <a href="/dashboard">← На главную</a></p>
+
+<script>
+const PRESETS = {
+  {% for key, preset in provider_presets.items() %}
+  "{{ key }}": {"base_url": "{{ preset.base_url }}", "text_model": "{{ preset.text_model }}", "image_model": "{{ preset.image_model }}"},
+  {% endfor %}
+};
+
+function switchTab(tab) {
+  // Переключаем кнопки
+  document.querySelectorAll('.provider-tab').forEach(function(btn) { btn.classList.remove('active'); });
+  document.querySelectorAll('.provider-tab-content').forEach(function(c) { c.classList.remove('active'); });
+  // Активируем нужный таб
+  if (tab === 'text') {
+    document.querySelectorAll('.provider-tab')[0].classList.add('active');
+    document.getElementById('tabText').classList.add('active');
+  } else {
+    document.querySelectorAll('.provider-tab')[1].classList.add('active');
+    document.getElementById('tabImage').classList.add('active');
+  }
+}
+
+function updatePresets(kind) {
+  var typeEl = document.getElementById(kind + "ProviderType");
+  var preset = PRESETS[typeEl.value];
+  if (!preset) return;
+  document.getElementById(kind + "BaseUrl").value = preset.base_url;
+  if (kind === "text") document.getElementById(kind + "Model").value = preset.text_model;
+  if (kind === "image") document.getElementById(kind + "Model").value = preset.image_model;
+  var globalCb = document.getElementById(kind + "UseGlobal");
+  if (globalCb && globalCb.checked) {
+    globalCb.checked = false;
+    toggleGlobal(kind);
+  }
+}
+
+function toggleGlobal(kind) {
+  var cb = document.getElementById(kind + "UseGlobal");
+  var key = document.getElementById(kind + "ApiKey");
+  var baseUrl = document.getElementById(kind + "BaseUrl");
+  var model = document.getElementById(kind + "Model");
+  if (cb.checked) {
+    key.disabled = true;
+    key.placeholder = "Используются глобальные настройки";
+    key.value = "";
+    baseUrl.value = "https://api.piapi.ai/v1";
+    model.value = (kind === "text") ? "gpt-4o" : "gpt-image-1";
+  } else {
+    key.disabled = false;
+    key.placeholder = "Ваш API ключ";
+  }
+}
+</script>
+{% endblock %}

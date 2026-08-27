@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Каналы публикации — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Каналы публикации</h1>
+<p class="form-hint">Добавьте Telegram-каналы и чаты, куда бот будет публиковать посты. Бот должен быть админом в канале.</p>
+
+<div class="grid">
+  <a class="tile" href="/channels/add">➕ Добавить канал</a>
+</div>
+
+{% if channels %}
+<table class="table">
+  <thead>
+    <tr><th>Название</th><th>Тип</th><th>Username</th><th>Добавлен</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for ch in channels %}
+    <tr>
+      <td>{{ ch.title }}</td>
+      <td>{{ ch.chat_type }}</td>
+      <td>{% if ch.username %}@{{ ch.username }}{% else %}—{% endif %}</td>
+      <td>{{ ch.created_at }}</td>
+      <td>
+        <form action="/channels/{{ ch.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Удалить канал?')">
+          <button type="submit" class="button-link button-link-danger">🗑</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card">
+  <p>Нет добавленных каналов. <a href="/channels/add">Добавьте первый →</a></p>
+</div>
+{% endif %}
+{% endblock %}
