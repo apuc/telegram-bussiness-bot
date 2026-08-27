@@ -24,6 +24,8 @@ media/
 *.png
 *.gif
 *.webp
+# Исключение: картинка для OpenGraph (og:image) должна быть в репозитории
+!cabinet_service/static/og-image.png
 
 # Логи
 *.log

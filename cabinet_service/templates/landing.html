@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ИИ Пресс-секретарь — умный контент для вашего бизнеса</title>
     <meta name="description" content="ИИ Пресс-секретарь — сервис, который создаёт контент-план, генерирует посты и картинки для вашего бизнеса и публикует их в Telegram.">
+
+    <!-- OpenGraph -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ИИ Пресс-секретарь">
+    <meta property="og:title" content="ИИ Пресс-секретарь — умный контент для вашего бизнеса">
+    <meta property="og:description" content="Создавайте контент-план, генерируйте посты и картинки для своего бизнеса и публикуйте их в Telegram — всё в одном сервисе.">
+    <meta property="og:url" content="https://press.my-dpr.ru/">
+    <meta property="og:image" content="https://press.my-dpr.ru/static/og-image.png">
+    <meta property="og:image:width" content="1536">
+    <meta property="og:image:height" content="1024">
+    <meta property="og:image:alt" content="ИИ Пресс-секретарь — сервис для генерации контента и публикации в Telegram">
+    <meta property="og:locale" content="ru_RU">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ИИ Пресс-секретарь — умный контент для вашего бизнеса">
+    <meta name="twitter:description" content="Создавайте контент-план, генерируйте посты и картинки для своего бизнеса и публикуйте их в Telegram.">
+    <meta name="twitter:image" content="https://press.my-dpr.ru/static/og-image.png">
+
     <script>
         // Тёмная тема по умолчанию; светлая — по выбору пользователя (сохраняется в localStorage)
         (function () {
@@ -206,6 +223,29 @@
             .hero { padding: 48px 0 40px; }
             .hero h1 { font-size: 32px; }
             .hero p { font-size: 17px; }
+
+            /* Адаптивный хедер для мобильных */
+            .header { padding: 12px 0; }
+            .header-inner { gap: 8px; }
+            .brand { gap: 8px; font-size: 16px; }
+            .brand-icon { width: 28px; height: 28px; font-size: 16px; }
+            .header-actions { gap: 6px; }
+            .header-actions .btn { padding: 8px 12px; font-size: 14px; }
+            /* Скрываем текст кнопки "Войти", оставляем компактную */
+            .header-actions .btn-ghost:not(.theme-toggle) {
+                padding: 8px 10px;
+            }
+            .theme-toggle { padding: 8px 10px; }
+        }
+
+        @media (max-width: 400px) {
+            /* На очень узких экранах скрываем текст кнопки "Войти" */
+            .header-actions .btn-ghost:not(.theme-toggle) span { display: none; }
+            .header-actions .btn-ghost:not(.theme-toggle) {
+                width: 36px;
+                padding: 8px 0;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -218,7 +258,7 @@
             </a>
             <div class="header-actions">
                 <button type="button" class="btn btn-ghost theme-toggle" data-theme-toggle aria-label="Переключить тему">🌙</button>
-                <a class="btn btn-ghost" href="/login">Войти</a>
+                <a class="btn btn-ghost" href="/login"><span>Войти</span></a>
                 <a class="btn btn-primary" href="/register">Регистрация</a>
             </div>
         </div>
