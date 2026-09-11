@@ -219,7 +219,7 @@ class ContentGenerator:
                     'telegram': 'Telegram',
                     'twitter': 'Twitter/X',
                     'ad': 'рекламный пост',
-            'tenchat': 'TenChat'
+                    'tenchat': 'TenChat'
                 }
 
                 prompt = f"""
