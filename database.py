@@ -37,6 +37,25 @@ def create_db():
     if 'password_hash' not in columns:
         cursor.execute('ALTER TABLE users ADD COLUMN password_hash TEXT')
         print("✅ Колонка 'password_hash' добавлена в таблицу users")
+    # === TenChat интеграция ===
+    if 'tenchat_username' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN tenchat_username TEXT')
+        print("✅ Колонка 'tenchat_username' добавлена в таблицу users")
+    if 'tenchat_tcaf' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN tenchat_tcaf TEXT')
+        print("✅ Колонка 'tenchat_tcaf' добавлена в таблицу users")
+    if 'tenchat_tcrf' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN tenchat_tcrf TEXT')
+        print("✅ Колонка 'tenchat_tcrf' добавлена в таблицу users")
+    if 'tenchat_session' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN tenchat_session TEXT')
+        print("✅ Колонка 'tenchat_session' добавлена в таблицу users")
+    if 'tenchat_connected_at' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN tenchat_connected_at TIMESTAMP')
+        print("✅ Колонка 'tenchat_connected_at' добавлена в таблицу users")
+    if 'tenchat_last_refresh' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN tenchat_last_refresh TIMESTAMP')
+        print("✅ Колонка 'tenchat_last_refresh' добавлена в таблицу users")
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS posts (
@@ -961,6 +980,83 @@ def get_task(task_id):
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+# === TenChat интеграция ===
+
+def save_tenchat_credentials(user_id, username, tcrf):
+    """Сохраняет ключи сессии TenChat для пользователя.
+    
+    Хранит только TCRF (refresh token) — он используется для получения
+    access_token через refresh. TCRF одноразовый, обновляется после каждого refresh.
+    """
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        '''UPDATE users SET
+            tenchat_username = ?,
+            tenchat_tcrf = ?,
+            tenchat_connected_at = COALESCE(tenchat_connected_at, CURRENT_TIMESTAMP),
+            tenchat_last_refresh = CURRENT_TIMESTAMP
+           WHERE id = ?''',
+        (username, tcrf, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_tenchat_credentials(user_id):
+    """Возвращает ключи сессии TenChat пользователя (или None).
+    
+    Возвращает dict с tenchat_username и tenchat_tcrf.
+    """
+    conn = _row_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''SELECT tenchat_username, tenchat_tcrf,
+                  tenchat_connected_at, tenchat_last_refresh
+           FROM users WHERE id = ?''',
+        (user_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    creds = dict(row)
+    if not creds.get('tenchat_tcrf'):
+        return None
+    return creds
+
+
+def update_tenchat_tokens(user_id, new_tcrf):
+    """Обновляет TCRF после refresh (TCRF одноразовый!)."""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE users SET tenchat_tcrf = ?, tenchat_last_refresh = CURRENT_TIMESTAMP WHERE id = ?',
+        (new_tcrf, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def clear_tenchat_credentials(user_id):
+    """Удаляет ключи сессии TenChat пользователя."""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        '''UPDATE users SET
+            tenchat_username = NULL,
+            tenchat_tcaf = NULL,
+            tenchat_tcrf = NULL,
+            tenchat_session = NULL,
+            tenchat_connected_at = NULL,
+            tenchat_last_refresh = NULL
+           WHERE id = ?''',
+        (user_id,)
+    )
+    conn.commit()
+    conn.close()
 
 
 # Создаем базу при первом импорте

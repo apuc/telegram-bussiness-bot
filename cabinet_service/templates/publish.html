@@ -28,11 +28,27 @@
       {% endfor %}
     </select>
   </label>
-  <button type="submit">📤 Опубликовать</button>
+  <button type="submit">📤 Опубликовать в Telegram</button>
 </form>
 {% else %}
 <div class="card">
   <p>⚠️ Нет добавленных каналов. <a href="/channels/add">Добавьте канал →</a></p>
+</div>
+{% endif %}
+
+{% if tenchat_connected %}
+<div class="card" style="margin-top:15px;">
+  <h2>TenChat</h2>
+  <p>Опубликовать этот пост в ваш профиль TenChat (@{{ tenchat_username }}).</p>
+  <form method="post" action="/posts/{{ post.id }}/publish/tenchat" class="form" style="margin:0;">
+    <button type="submit">📤 Опубликовать в TenChat</button>
+  </form>
+</div>
+{% else %}
+<div class="card" style="margin-top:15px;">
+  <h2>TenChat</h2>
+  <p>Подключите TenChat, чтобы публиковать посты в профиль.</p>
+  <a href="/tenchat" class="copy-btn">🔑 Настроить TenChat</a>
 </div>
 {% endif %}
 

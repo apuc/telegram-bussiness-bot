@@ -20,6 +20,7 @@ from ai_core.telegram_publisher import (
     publish_post,
     resolve_chat,
 )
+from ai_core.tenchat_publisher import publish_post as publish_post_tenchat
 from cabinet_service.brand_doc_generator import generate_brand_docx
 from config import SECRET_KEY
 from database import (
@@ -63,9 +64,13 @@ from database import (
     save_post_for_user,
     save_post_image,
     save_provider_settings,
+    clear_tenchat_credentials,
+    get_tenchat_credentials,
+    save_tenchat_credentials,
     update_plan_status,
     update_post_content,
     update_task_status,
+    update_tenchat_tokens,
     update_user_field_by_id,
 )
 
@@ -350,6 +355,48 @@ def provider_submit(
         image_preset.get("name", image_provider_type),
     ))
     return RedirectResponse("/provider", status_code=303)
+
+
+@app.get("/tenchat")
+def tenchat_form(request: Request, user: dict = Depends(current_user)):
+    creds = get_tenchat_credentials(user["id"])
+    return render(request, "tenchat.html", user=user, creds=creds)
+
+
+@app.post("/tenchat")
+def tenchat_submit(
+    request: Request,
+    tenchat_username: str = Form(...),
+    tenchat_tcrf: str = Form(...),
+    user: dict = Depends(current_user),
+):
+    errors = []
+    username = tenchat_username.strip().lstrip("@")
+    tcrf = tenchat_tcrf.strip()
+
+    if not username:
+        errors.append("Укажите username в TenChat.")
+    if not tcrf:
+        errors.append("Укажите ключ TCRF (refresh token).")
+
+    if errors:
+        return render(
+            request, "tenchat.html", status_code=400,
+            user=user, creds=get_tenchat_credentials(user["id"]),
+            errors=errors,
+            form={"tenchat_username": username, "tenchat_tcrf": tcrf},
+        )
+
+    save_tenchat_credentials(user["id"], username, tcrf)
+    flash(request, "TenChat подключён: @%s. Refresh token сохранён." % username)
+    return RedirectResponse("/tenchat", status_code=303)
+
+
+@app.post("/tenchat/disconnect")
+def tenchat_disconnect(request: Request, user: dict = Depends(current_user)):
+    clear_tenchat_credentials(user["id"])
+    flash(request, "TenChat отключён. Ключи сессии удалены.")
+    return RedirectResponse("/tenchat", status_code=303)
 
 
 @app.get("/generate")
@@ -969,8 +1016,11 @@ def publish_form(request: Request, post_id: int, user: dict = Depends(current_us
     if not post:
         raise HTTPException(status_code=404, detail="Пост не найден")
     channels = get_channels_for_user(user["id"])
+    tenchat = get_tenchat_credentials(user["id"])
     return render(request, "publish.html", user=user, post=post, channels=channels,
-                  platform_label=platform_label)
+                  platform_label=platform_label,
+                  tenchat_connected=bool(tenchat),
+                  tenchat_username=tenchat["tenchat_username"] if tenchat else None)
 
 
 @app.post("/posts/{post_id}/publish")
@@ -1014,6 +1064,36 @@ def publish_submit(
         flash(request, f"✅ Пост опубликован в «{channel['title']}»")
     else:
         flash(request, f"❌ Ошибка публикации: {message}")
+
+    return RedirectResponse(f"/posts/{post_id}", status_code=303)
+
+
+@app.post("/posts/{post_id}/publish/tenchat")
+def publish_tenchat_submit(request: Request, post_id: int, user: dict = Depends(current_user)):
+    post = get_post_by_id_for_user(post_id, user["id"])
+    if not post:
+        raise HTTPException(status_code=404, detail="Пост не найден")
+
+    creds = get_tenchat_credentials(user["id"])
+    if not creds:
+        flash(request, "❌ TenChat не подключён. Настройте ключи сессии на странице /tenchat.")
+        return RedirectResponse(f"/posts/{post_id}/publish", status_code=303)
+
+    ok, result, new_tcrf = publish_post_tenchat(
+        creds["tenchat_tcrf"],
+        post["content"],
+    )
+
+    # Обновляем TCRF (одноразовый — после каждого refresh он меняется)
+    if new_tcrf:
+        update_tenchat_tokens(user["id"], new_tcrf)
+
+    if ok:
+        mark_post_published(post_id, user["id"], "TenChat")
+        url = result.get("url") if isinstance(result, dict) else None
+        flash(request, f"✅ Пост опубликован в TenChat" + (f": {url}" if url else ""))
+    else:
+        flash(request, f"❌ Ошибка публикации в TenChat: {result}")
 
     return RedirectResponse(f"/posts/{post_id}", status_code=303)
 

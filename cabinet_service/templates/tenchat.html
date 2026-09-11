@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}TenChat — Личный кабинет{% endblock %}
+{% block content %}
+<h1>Интеграция с TenChat</h1>
+<p class="form-hint">Подключите свой аккаунт TenChat, чтобы публиковать посты автоматически. Refresh token хранится только у вас и используется для публикации от вашего имени.</p>
+
+{% if creds %}
+<div class="card">
+  <p style="margin:0">
+    <strong>Подключено:</strong> @{{ creds.tenchat_username }}
+    &nbsp;|&nbsp; <span class="form-hint">подключено {{ creds.tenchat_connected_at }}</span>
+    {% if creds.tenchat_last_refresh %}
+    &nbsp;|&nbsp; <span class="form-hint">обновлено {{ creds.tenchat_last_refresh }}</span>
+    {% endif %}
+  </p>
+</div>
+{% else %}
+<div class="card">
+  <p style="margin:0">⚠️ TenChat не подключён. Введите refresh token ниже, чтобы публиковать посты.</p>
+</div>
+{% endif %}
+
+<form method="post" action="/tenchat" class="form">
+  <h2>🔑 Refresh token TenChat</h2>
+
+  <label>Username в TenChat
+    <input type="text" name="tenchat_username"
+      value="{{ form.tenchat_username if form else (creds.tenchat_username if creds else '') }}"
+      placeholder="например, kavalar" required>
+  </label>
+
+  <label>Ключ TCRF (refresh token)
+    <input type="password" name="tenchat_tcrf"
+      value="{{ form.tenchat_tcrf if form else '' }}"
+      placeholder="вставьте значение куки TCRF" required>
+  </label>
+
+  <button type="submit">💾 Сохранить ключи</button>
+</form>
+
+{% if creds %}
+<form method="post" action="/tenchat/disconnect" class="form" style="margin-top:15px"
+      onsubmit="return confirm('Отключить TenChat? Ключи будут удалены.');">
+  <button type="submit" style="background: var(--danger, #dc3545);">🔌 Отключить TenChat</button>
+</form>
+{% endif %}
+
+<div class="card" style="margin-top:20px; background: var(--bg-secondary);">
+  <h2>📖 Как получить refresh token</h2>
+  <ol style="margin:5px 0 0 18px; font-size: 14px; line-height: 1.7;">
+    <li>Откройте <a href="https://tenchat.ru" target="_blank" rel="noopener">tenchat.ru</a> и войдите в свой аккаунт.</li>
+    <li>Нажмите <strong>F12</strong> (или <strong>Ctrl+Shift+I</strong>), чтобы открыть инструменты разработчика.</li>
+    <li>Перейдите на вкладку <strong>Application</strong> (Приложение).</li>
+    <li>В левом меню выберите <strong>Cookies</strong> → <strong>https://tenchat.ru</strong>.</li>
+    <li>Найдите куку <strong>TCRF</strong> и скопируйте её значение.</li>
+    <li>Вставьте значение в поле выше и нажмите «Сохранить ключи».</li>
+  </ol>
+  <p class="form-hint" style="margin-top:10px">
+    ⚠️ Refresh token живёт ~14 дней и автоматически обновляется при каждой публикации.
+    Если публикация перестала работать — обновите ключ заново.
+  </p>
+</div>
+
+<p style="margin-top:20px"><a href="/profile/edit">← Назад в профиль</a> · <a href="/dashboard">← На главную</a></p>
+{% endblock %}
