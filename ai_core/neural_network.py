@@ -161,7 +161,8 @@ class ContentGenerator:
             'linkedin': 'LinkedIn',
             'telegram': 'Telegram',
             'twitter': 'Twitter/X',
-            'ad': 'рекламный пост'
+            'ad': 'рекламный пост',
+            'tenchat': 'TenChat'
         }
         
         prompt = f"""
@@ -217,7 +218,8 @@ class ContentGenerator:
                     'linkedin': 'LinkedIn',
                     'telegram': 'Telegram',
                     'twitter': 'Twitter/X',
-                    'ad': 'рекламный пост'
+                    'ad': 'рекламный пост',
+            'tenchat': 'TenChat'
                 }
 
                 prompt = f"""
@@ -310,7 +312,8 @@ class ContentGenerator:
             'linkedin': 'LinkedIn',
             'telegram': 'Telegram',
             'twitter': 'Twitter/X',
-            'ad': 'рекламный пост'
+            'ad': 'рекламный пост',
+            'tenchat': 'TenChat'
         }
 
         if is_community:

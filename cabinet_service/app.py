@@ -108,6 +108,7 @@ PLATFORMS = [
     ("linkedin", "LinkedIn"),
     ("telegram", "Telegram"),
     ("twitter", "Twitter/X"),
+    ("tenchat", "TenChat"),
     ("ad", "Рекламный пост"),
 ]
 
