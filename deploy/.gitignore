@@ -23,6 +23,8 @@ media/
 *.png
 *.gif
 *.webp
+# Логотипы, иконки и экраны для презентации — исходники generate_presentation.py
+!presentation_images/**/*.png
 *.pdf
 
 # Логи

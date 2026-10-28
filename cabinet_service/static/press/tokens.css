@@ -1,0 +1,215 @@
+/* ИИ Пресс-секретарь — токены дизайн-системы. Сгенерировано из tokens.json. */
+
+@font-face {
+  font-family: "Donbass";
+  src: url("fonts/donbass-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Donbass";
+  src: url("fonts/donbass-medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Donbass";
+  src: url("fonts/donbass-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Donbass";
+  src: url("fonts/donbass-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --surface: #f4f7fb;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e9eff6;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --hairline: #d6e0ec;
+  --border-strong: #7d8fa8;
+  --ink: #0e1b2e;
+  --ink-secondary: #46566c;
+  --ink-tertiary: #5d6d84;
+  --brand: #1d71b8;
+  --brand-pressed: #175e9a;
+  --brand-bright: #009fe3;
+  --logo-deep: #1d71b8;
+  --logo-shade: #312783;
+  --brand-tint: #e9f4fc;
+  --on-brand: #ffffff;
+  --indigo: #312783;
+  --indigo-tint: #ecebfa;
+  --pillar-1: var(--brand);
+  --pillar-1-tint: var(--brand-tint);
+  --pillar-2: #0b6b78;
+  --pillar-2-tint: #e0f2f4;
+  --pillar-3: #a12a6c;
+  --pillar-3-tint: #fbe8f2;
+  --success: #0b7552;
+  --success-tint: #e1f3eb;
+  --warning: #8f5300;
+  --warning-tint: #fcf0dc;
+  --danger: #b83710;
+  --danger-tint: #fce8e1;
+  --focus: var(--brand);
+  --scrim: rgba(14, 27, 46, 0.36);
+  --glass-edge: rgba(255, 255, 255, 0.75);
+  --glass-sheen: rgba(255, 255, 255, 0.55);
+  --ambient-1: rgba(0, 159, 227, 0.22);
+  --ambient-2: rgba(49, 39, 131, 0.12);
+  --ambient-3: rgba(29, 113, 184, 0.16);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --inset-badge: 8px;
+  --inset-control: 12px;
+  --inset-card: 20px;
+  --inset-panel: 24px;
+  --gap-icon: 8px;
+  --gap-row: 12px;
+  --stack-text: 4px;
+  --stack-group: 16px;
+  --stack-section: 32px;
+  --page-gutter: 32px;
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+  --target-min: 44px;
+  --control-sm: 36px;
+  --control-md: 44px;
+  --control-lg: 52px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --tile-sm: 32px;
+  --tile-md: 40px;
+  --tile-lg: 44px;
+  --dur-tap: 120ms;
+  --dur-move: 240ms;
+  --dur-sheet: 380ms;
+  --dur-think: 1400ms;
+  --dur-snappy: 320ms;
+  --dur-smooth: 440ms;
+  --dur-bouncy: 520ms;
+  --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --spring-snappy: linear(0, 0.0383, 0.1297, 0.2472, 0.3722, 0.493, 0.6027, 0.6978, 0.7773, 0.8416, 0.8921, 0.9306, 0.959, 0.9793, 0.9931, 1.0021, 1.0074, 1.0101, 1.0111, 1.0109, 1.01, 1.0087, 1.0073, 1.006, 1.0047, 1.0036, 1.0027, 1.0019, 1);
+  --spring-smooth: linear(0, 0.0435, 0.1411, 0.259, 0.3782, 0.4888, 0.5862, 0.6691, 0.7381, 0.7944, 0.8397, 0.8757, 0.9041, 0.9264, 0.9437, 0.9571, 0.9674, 0.9753, 0.9813, 0.9859, 0.9894, 0.992, 0.994, 0.9955, 0.9967, 0.9975, 0.9981, 0.9986, 1);
+  --spring-bouncy: linear(0, 0.0666, 0.2222, 0.413, 0.6018, 0.7662, 0.8954, 0.9872, 1.0448, 1.0745, 1.0835, 1.0787, 1.0661, 1.0502, 1.0344, 1.0205, 1.0094, 1.0015, 0.9965, 0.9939, 0.993, 0.9934, 0.9944, 0.9957, 0.997, 0.9982, 0.9992, 0.9998, 1);
+  --blur-glass: 24px;
+  --shadow-1: 0 0.5px 1px rgba(14, 27, 46, 0.06), 0 2px 8px rgba(14, 27, 46, 0.04);
+  --shadow-2: 0 1px 2px rgba(14, 27, 46, 0.06), 0 10px 28px -6px rgba(29, 113, 184, 0.18);
+  --shadow-float: 0 2px 6px rgba(14, 27, 46, 0.06), 0 24px 56px -12px rgba(14, 27, 46, 0.22);
+  --font-display: Donbass, "SF Pro Rounded", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-text: Donbass, -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --surface: #0a1322;
+  --surface-raised: #121e33;
+  --surface-sunken: #060c17;
+  --surface-glass: rgba(18, 30, 51, 0.72);
+  --hairline: #24344d;
+  --border-strong: #647a99;
+  --ink: #eaf1fa;
+  --ink-secondary: #a9b8cc;
+  --ink-tertiary: #8a9bb3;
+  --brand: #4cb3f0;
+  --brand-pressed: #7cc7f4;
+  --brand-bright: #009fe3;
+  --logo-deep: #1d71b8;
+  --logo-shade: #312783;
+  --brand-tint: #13304f;
+  --on-brand: #04182b;
+  --indigo: #a49df2;
+  --indigo-tint: #211c4a;
+  --pillar-1: var(--brand);
+  --pillar-1-tint: var(--brand-tint);
+  --pillar-2: #5fcfdc;
+  --pillar-2-tint: #0e2c31;
+  --pillar-3: #f390c6;
+  --pillar-3-tint: #371429;
+  --success: #4fd1a1;
+  --success-tint: #0f2e25;
+  --warning: #f2b765;
+  --warning-tint: #33240d;
+  --danger: #ff9370;
+  --danger-tint: #3a1a12;
+  --focus: var(--brand);
+  --scrim: rgba(0, 0, 0, 0.56);
+  --glass-edge: rgba(255, 255, 255, 0.12);
+  --glass-sheen: rgba(164, 210, 255, 0.16);
+  --ambient-1: rgba(0, 159, 227, 0.18);
+  --ambient-2: rgba(164, 157, 242, 0.12);
+  --ambient-3: rgba(29, 113, 184, 0.2);
+  --shadow-1: 0 0.5px 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -6px rgba(0, 0, 0, 0.55);
+  --shadow-float: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 56px -12px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #0a1322;
+    --surface-raised: #121e33;
+    --surface-sunken: #060c17;
+    --surface-glass: rgba(18, 30, 51, 0.72);
+    --hairline: #24344d;
+    --border-strong: #647a99;
+    --ink: #eaf1fa;
+    --ink-secondary: #a9b8cc;
+    --ink-tertiary: #8a9bb3;
+    --brand: #4cb3f0;
+    --brand-pressed: #7cc7f4;
+    --brand-bright: #009fe3;
+    --logo-deep: #1d71b8;
+    --logo-shade: #312783;
+    --brand-tint: #13304f;
+    --on-brand: #04182b;
+    --indigo: #a49df2;
+    --indigo-tint: #211c4a;
+    --pillar-1: var(--brand);
+    --pillar-1-tint: var(--brand-tint);
+    --pillar-2: #5fcfdc;
+    --pillar-2-tint: #0e2c31;
+    --pillar-3: #f390c6;
+    --pillar-3-tint: #371429;
+    --success: #4fd1a1;
+    --success-tint: #0f2e25;
+    --warning: #f2b765;
+    --warning-tint: #33240d;
+    --danger: #ff9370;
+    --danger-tint: #3a1a12;
+    --focus: var(--brand);
+    --scrim: rgba(0, 0, 0, 0.56);
+    --glass-edge: rgba(255, 255, 255, 0.12);
+    --glass-sheen: rgba(164, 210, 255, 0.16);
+    --ambient-1: rgba(0, 159, 227, 0.18);
+    --ambient-2: rgba(164, 157, 242, 0.12);
+    --ambient-3: rgba(29, 113, 184, 0.2);
+    --shadow-1: 0 0.5px 1px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -6px rgba(0, 0, 0, 0.55);
+    --shadow-float: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 56px -12px rgba(0, 0, 0, 0.7);
+    color-scheme: dark;
+  }
+}

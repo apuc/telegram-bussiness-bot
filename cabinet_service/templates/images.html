@@ -1,34 +1,42 @@
 {% extends "base.html" %}
-{% block title %}Картинки — Личный кабинет{% endblock %}
+{% block title %}Картинки{% endblock %}
 {% block content %}
-<h1>Медиа-библиотека</h1>
-<p><a class="copy-btn" href="/images/generate">🎨 Сгенерировать картинку</a></p>
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Картинки</h1>
+        <p class="ps-lead">{% if images %}{{ images|length }} {{ plural(images|length, ['картинка', 'картинки', 'картинок']) }} в библиотеке.{% else %}Библиотека иллюстраций к постам.{% endif %}</p>
+    </div>
+    <a href="/images/generate" class="ps-btn ps-btn--primary">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Сгенерировать картинку</span></a>
+</div>
+
 {% if images %}
-<div class="media-grid">
+<div class="app-gallery">
     {% for img in images %}
-    <div class="media-card">
-        <a href="/media/{{ img.filename }}" target="_blank" title="Открыть в полном размере">
-            <img class="media-thumb" src="/media/{{ img.filename }}" alt="{{ img.prompt }}" loading="lazy">
+    <figure class="app-gallery-item" style="margin:0">
+        <a href="/media/{{ img.filename }}" target="_blank" rel="noopener" aria-label="Открыть в полном размере">
+            <img src="/media/{{ img.filename }}" alt="{{ img.prompt }}" loading="lazy">
         </a>
-        <div class="media-body">
-            <div class="media-prompt" title="{{ img.prompt }}">{{ img.prompt }}</div>
-            <div class="post-meta">{{ img.created_at }}</div>
-            <div class="post-actions">
-                <a class="copy-btn" href="/media/{{ img.filename }}" download>⬇ Скачать</a>
-                <form method="post" action="/images/{{ img.id }}/delete" class="inline-form"
-                      onsubmit="return confirm('Удалить эту картинку?');">
-                    <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
+        <figcaption class="app-gallery-body">
+            <p class="app-gallery-prompt" title="{{ img.prompt }}">{{ img.prompt }}</p>
+            <span class="app-caption">{{ img.created_at|local_dt }}</span>
+            <div class="app-actions" style="margin-left:-6px">
+                <a class="ps-btn ps-btn--quiet ps-btn--sm" href="/media/{{ img.filename }}" download>{{ ui.icon('download', 16) }}<span class="ps-btn-label">Скачать</span></a>
+                <form method="post" action="/images/{{ img.id }}/delete" class="inline-form" data-confirm="Удалить картинку?" data-confirm-body="Её нельзя будет вернуть.">
+                    <button type="submit" class="ps-iconbtn" aria-label="Удалить картинку">{{ ui.icon('trash', 20) }}</button>
                 </form>
             </div>
-        </div>
-    </div>
+        </figcaption>
+    </figure>
     {% endfor %}
 </div>
 {% else %}
-<div class="card">
-    <p>Картинок пока нет.</p>
-    <p><a href="/images/generate">🎨 Сгенерировать первую картинку</a></p>
-</div>
+<section class="ps-panel">
+    <div class="ps-empty">
+        <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('image', 28) }}</span>
+        <h2 class="ps-empty-title">Картинок пока нет</h2>
+        <p class="ps-empty-text">Выберите шаблон или опишите идею — ИИ нарисует иллюстрацию в стиле вашего медиа-образа.</p>
+        <a href="/images/generate" class="ps-btn ps-btn--primary">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Сгенерировать картинку</span></a>
+    </div>
+</section>
 {% endif %}
-<p><a href="/dashboard">← Назад в кабинет</a></p>
 {% endblock %}

@@ -1,24 +1,26 @@
 {% extends "base.html" %}
-{% block title %}{{ survey.title }} — Личный кабинет{% endblock %}
+{% block title %}{{ survey.title }}{% endblock %}
 {% block content %}
-<h1>{{ survey.title }}</h1>
-<div class="post-actions">
-  <a href="/surveys/{{ survey.id }}/export" class="copy-btn">📄 Скачать .docx</a>
-  <a href="/survey" class="copy-btn">➕ Новый опрос</a>
-  <a href="/surveys" class="copy-btn">← К списку</a>
-  <form action="/surveys/{{ survey.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Удалить медиа-образ?')">
-    <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
-  </form>
-</div>
-
-<div class="card">
-  <p><strong>Дата создания:</strong> {{ survey.created_at }}</p>
+<div class="ps-main-head">
+  <div>
+    <a href="/surveys" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">Медиа-образы</span></a>
+    <h1 class="ps-h1">{{ survey.title }}</h1>
+    <p class="ps-lead">Создан {{ survey.created_at|local_dt('%d.%m.%Y') }}</p>
+  </div>
+  <div class="app-head-actions">
+    <form action="/surveys/{{ survey.id }}/delete" method="post" class="inline-form" data-confirm="Удалить медиа-образ?" data-confirm-body="{{ survey.title }} — анкета удалится, вернуть её будет нельзя.">
+      <button type="submit" class="ps-iconbtn" aria-label="Удалить медиа-образ">{{ ui.icon('trash', 22) }}</button>
+    </form>
+    <a href="/surveys/{{ survey.id }}/export" class="ps-btn ps-btn--secondary">{{ ui.icon('download', 20) }}<span class="ps-btn-label">Экспорт .docx</span></a>
+    <a href="/generate" class="ps-btn ps-btn--primary">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Создать пост</span></a>
+  </div>
 </div>
 
 {% set d = survey.data %}
 
+<div class="app-survey-grid">
 <!-- 1. Резюме и цели -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>1. Резюме и цели</h2>
   <p><strong>Клиент:</strong> {{ d.client_name }} ({{ d.client_role }}), {{ d.client_location }}</p>
   <p><strong>Текущая ситуация:</strong> {{ d.current_situation }}</p>
@@ -29,20 +31,20 @@
     <li><strong>Коммерциализация:</strong> {{ d.goal_commercial_leads }} заявок/мес ({{ d.goal_commercial_services }})</li>
     <li><strong>Контент:</strong> {{ d.goal_content_system }}</li>
   </ul>
-</div>
+</section>
 
 <!-- 2. Позиционирование -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>2. Позиционирование и УТП</h2>
   <p><strong>Сущность бренда:</strong> {{ d.brand_essence }}</p>
   <p><strong>Кому помогаю:</strong> {{ d.positioning_who }}</p>
   <p><strong>Проблема:</strong> {{ d.positioning_problem }}</p>
   <p><strong>Результат:</strong> {{ d.positioning_result }}</p>
   <p><strong>УТП:</strong> {{ d.usp }}</p>
-</div>
+</section>
 
 <!-- 3. Аудитории и каналы -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>3. Аудитории и каналы</h2>
   <h3>Идеальные подписчики:</h3>
   <ul>
@@ -61,10 +63,10 @@
     </tbody>
   </table>
   {% endif %}
-</div>
+</section>
 
 <!-- 4. Визуальная идентичность -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>4. Визуальная идентичность</h2>
   <p><strong>Концепция:</strong> {{ d.visual_concept }}</p>
   <h3>Цвета:</h3>
@@ -80,10 +82,10 @@
     <li>Текст: {{ d.typography_body }}</li>
     <li>Акценты: {{ d.typography_accents }}</li>
   </ul>
-</div>
+</section>
 
 <!-- 5. ToV -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>5. Tone of Voice</h2>
   <p><strong>Описание:</strong> {{ d.tov_description }}</p>
   <p><strong>Референсы:</strong> {{ d.tov_references }}</p>
@@ -95,10 +97,10 @@
     {% endfor %}
   </ul>
   {% endif %}
-</div>
+</section>
 
 <!-- 6. Контент-стратегия -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>6. Контент-стратегия: Три столпа</h2>
   <table class="table">
     <thead><tr><th>Столп</th><th>Цель</th><th>Форматы</th><th>Частота</th></tr></thead>
@@ -111,10 +113,10 @@
   {% if d.special_formats %}
   <p><strong>Особые форматы:</strong> {{ d.special_formats }}</p>
   {% endif %}
-</div>
+</section>
 
 <!-- 7. Воронка и продукты -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>7. Воронка и продуктовый ряд</h2>
   {% if d.funnel %}
   <table class="table">
@@ -134,49 +136,49 @@
     <li><strong>Комплексные решения:</strong> {{ d.product_complex }}</li>
     <li><strong>Экспертные продукты:</strong> {{ d.product_expert }}</li>
   </ul>
-</div>
+</section>
 
 <!-- 8. Метрики -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>8. Метрики</h2>
   {% if d.metrics_quantitative %}
   <h3>Количественные:</h3>
-  <pre class="result">{{ d.metrics_quantitative }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.metrics_quantitative }}</p>
   {% endif %}
   {% if d.metrics_qualitative %}
   <h3>Качественные:</h3>
-  <pre class="result">{{ d.metrics_qualitative }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.metrics_qualitative }}</p>
   {% endif %}
   {% if d.metrics_commercial %}
   <h3>Коммерческие:</h3>
-  <pre class="result">{{ d.metrics_commercial }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.metrics_commercial }}</p>
   {% endif %}
-</div>
+</section>
 
 <!-- 9. Риски -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>9. Риски и рекомендации</h2>
   {% if d.risks %}
   <h3>Риски:</h3>
-  <pre class="result">{{ d.risks }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.risks }}</p>
   {% endif %}
   {% if d.recommendations %}
   <h3>Рекомендации:</h3>
-  <pre class="result">{{ d.recommendations }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.recommendations }}</p>
   {% endif %}
-</div>
+</section>
 
 <!-- 10. Архетипы -->
-<div class="card">
+<section class="ps-panel app-survey-section">
   <h2>10. Архетипический образ</h2>
   <p><strong>Ключевой архетип:</strong> {{ d.archetype_key_name }}</p>
   <p><strong>Суть:</strong> {{ d.archetype_key_essence }}</p>
   {% if d.archetype_key_manifestations %}
-  <pre class="result">{{ d.archetype_key_manifestations }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.archetype_key_manifestations }}</p>
   {% endif %}
   {% if d.archetype_supporting %}
   <h3>Вспомогательные:</h3>
-  <pre class="result">{{ d.archetype_supporting }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.archetype_supporting }}</p>
   {% endif %}
   {% if d.archetype_synthesis %}
   <h3>Синтез:</h3>
@@ -184,18 +186,19 @@
   {% endif %}
   {% if d.archetype_table %}
   <h3>Таблица проявлений:</h3>
-  <pre class="result">{{ d.archetype_table }}</pre>
+  <p class="result app-muted" style="margin:0">{{ d.archetype_table }}</p>
   {% endif %}
-</div>
+</section>
 
 <!-- 11. Промпт -->
-<div class="card">
-  <h2>11. Промпт для генерации контента</h2>
+<section class="ps-panel app-survey-section">
+  <h2>11. Инструкция для ИИ</h2>
   {% if d.prompt_context %}<p><strong>Контекст:</strong> {{ d.prompt_context }}</p>{% endif %}
   {% if d.prompt_tov %}<p><strong>ToV:</strong> {{ d.prompt_tov }}</p>{% endif %}
   {% if d.prompt_structure %}<p><strong>Структура:</strong> {{ d.prompt_structure }}</p>{% endif %}
-  {% if d.prompt_directions %}<p><strong>Направления:</strong></p><pre class="result">{{ d.prompt_directions }}</pre>{% endif %}
-  {% if d.prompt_formats %}<p><strong>Форматы:</strong></p><pre class="result">{{ d.prompt_formats }}</pre>{% endif %}
-  {% if d.prompt_technical %}<p><strong>Тех. требования:</strong></p><pre class="result">{{ d.prompt_technical }}</pre>{% endif %}
+  {% if d.prompt_directions %}<p><strong>Направления:</strong></p><p class="result app-muted" style="margin:0">{{ d.prompt_directions }}</p>{% endif %}
+  {% if d.prompt_formats %}<p><strong>Форматы:</strong></p><p class="result app-muted" style="margin:0">{{ d.prompt_formats }}</p>{% endif %}
+  {% if d.prompt_technical %}<p><strong>Тех. требования:</strong></p><p class="result app-muted" style="margin:0">{{ d.prompt_technical }}</p>{% endif %}
+</section>
 </div>
 {% endblock %}

@@ -48,6 +48,12 @@ def _md_to_html(text: str) -> str:
     return text
 
 
+def _scrub(err) -> str:
+    """Текст ошибки без токена бота: requests кладёт полный URL запроса (с токеном) в исключение."""
+    text = str(err)
+    return text.replace(TOKEN, "<token>") if TOKEN else text
+
+
 def _api_call(method, params):
     """Вызывает Telegram Bot API метод. Возвращает (ok, result_or_error)."""
     try:
@@ -62,7 +68,7 @@ def _api_call(method, params):
             return True, data.get("result", {})
         return False, data.get("description", "Неизвестная ошибка")
     except Exception as e:
-        return False, str(e)
+        return False, _scrub(e)
 
 
 def resolve_chat(username_or_id):
@@ -83,12 +89,14 @@ def resolve_chat(username_or_id):
     chat_type = result.get("type", "unknown")
     title = result.get("title") or result.get("first_name", "") or result.get("username", "")
     username = result.get("username", "")
+    description = result.get("description", "") or ""
 
     return {
         "chat_id": chat_id,
         "title": title,
         "username": username,
         "type": chat_type,
+        "description": description,
     }
 
 
@@ -183,4 +191,4 @@ def _api_call_send_photo(chat_id, image_bytes, caption):
 
         return True, data.get("result", {})
     except Exception as e:
-        return False, str(e)
+        return False, _scrub(e)

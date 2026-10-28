@@ -1,65 +1,77 @@
 {% extends "base.html" %}
-{% block title %}TenChat — Личный кабинет{% endblock %}
+{% block title %}TenChat{% endblock %}
 {% block content %}
-<h1>Интеграция с TenChat</h1>
-<p class="form-hint">Подключите свой аккаунт TenChat, чтобы публиковать посты автоматически. Refresh token хранится только у вас и используется для публикации от вашего имени.</p>
-
-{% if creds %}
-<div class="card">
-  <p style="margin:0">
-    <strong>Подключено:</strong> @{{ creds.tenchat_username }}
-    &nbsp;|&nbsp; <span class="form-hint">подключено {{ creds.tenchat_connected_at }}</span>
-    {% if creds.tenchat_last_refresh %}
-    &nbsp;|&nbsp; <span class="form-hint">обновлено {{ creds.tenchat_last_refresh }}</span>
-    {% endif %}
-  </p>
-</div>
-{% else %}
-<div class="card">
-  <p style="margin:0">⚠️ TenChat не подключён. Введите refresh token ниже, чтобы публиковать посты.</p>
-</div>
-{% endif %}
-
-<form method="post" action="/tenchat" class="form">
-  <h2>🔑 Refresh token TenChat</h2>
-
-  <label>Username в TenChat
-    <input type="text" name="tenchat_username"
-      value="{{ form.tenchat_username if form else (creds.tenchat_username if creds else '') }}"
-      placeholder="например, kavalar" required>
-  </label>
-
-  <label>Ключ TCRF (refresh token)
-    <input type="password" name="tenchat_tcrf"
-      value="{{ form.tenchat_tcrf if form else '' }}"
-      placeholder="вставьте значение куки TCRF" required>
-  </label>
-
-  <button type="submit">💾 Сохранить ключи</button>
-</form>
-
-{% if creds %}
-<form method="post" action="/tenchat/disconnect" class="form" style="margin-top:15px"
-      onsubmit="return confirm('Отключить TenChat? Ключи будут удалены.');">
-  <button type="submit" style="background: var(--danger, #dc3545);">🔌 Отключить TenChat</button>
-</form>
-{% endif %}
-
-<div class="card" style="margin-top:20px; background: var(--bg-secondary);">
-  <h2>📖 Как получить refresh token</h2>
-  <ol style="margin:5px 0 0 18px; font-size: 14px; line-height: 1.7;">
-    <li>Откройте <a href="https://tenchat.ru" target="_blank" rel="noopener">tenchat.ru</a> и войдите в свой аккаунт.</li>
-    <li>Нажмите <strong>F12</strong> (или <strong>Ctrl+Shift+I</strong>), чтобы открыть инструменты разработчика.</li>
-    <li>Перейдите на вкладку <strong>Application</strong> (Приложение).</li>
-    <li>В левом меню выберите <strong>Cookies</strong> → <strong>https://tenchat.ru</strong>.</li>
-    <li>Найдите куку <strong>TCRF</strong> и скопируйте её значение.</li>
-    <li>Вставьте значение в поле выше и нажмите «Сохранить ключи».</li>
-  </ol>
-  <p class="form-hint" style="margin-top:10px">
-    ⚠️ Refresh token живёт ~14 дней и автоматически обновляется при каждой публикации.
-    Если публикация перестала работать — обновите ключ заново.
-  </p>
+<div class="ps-main-head">
+    <div>
+        <a href="/provider" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">ИИ-провайдеры</span></a>
+        <h1 class="ps-h1">TenChat</h1>
+        <p class="ps-lead">Подключите аккаунт, чтобы публиковать посты в профиль. Ключ хранится только у вас и нужен для публикации от вашего имени.</p>
+    </div>
 </div>
 
-<p style="margin-top:20px"><a href="/profile/edit">← Назад в профиль</a> · <a href="/dashboard">← На главную</a></p>
+<div class="ps-split" style="--ps-aside: 380px">
+    <div class="app-stack-lg">
+        <section class="ps-provider">
+            <header class="ps-provider-head">
+                <span class="ps-provider-icon" aria-hidden="true">{{ ui.icon('users', 22) }}</span>
+                <span class="ps-provider-text">
+                    <h2 class="ps-provider-title">Аккаунт TenChat</h2>
+                    <span class="ps-provider-desc">{% if creds %}@{{ creds.tenchat_username }} · подключено {{ creds.tenchat_connected_at|local_dt }}{% if creds.tenchat_last_refresh %} · ключ обновлён {{ creds.tenchat_last_refresh|local_dt }}{% endif %}{% else %}Введите username и ключ TCRF{% endif %}</span>
+                </span>
+                {% if creds %}
+                <span class="ps-badge ps-badge--success">{{ ui.icon('check', 14) }}<span>Подключено</span></span>
+                {% else %}
+                <span class="ps-badge ps-badge--neutral">{{ ui.icon('info', 14) }}<span>Не настроено</span></span>
+                {% endif %}
+            </header>
+            <form method="post" action="/tenchat" class="app-form">
+                <div class="ps-field">
+                    <label for="tenchat_username" class="ps-field-label">Username в TenChat</label>
+                    <input id="tenchat_username" class="ps-field-control" type="text" name="tenchat_username"
+                           value="{{ form.tenchat_username if form else (creds.tenchat_username if creds else '') }}" placeholder="например, kavalar" required>
+                </div>
+                <div class="ps-field">
+                    <label for="tenchat_tcrf" class="ps-field-label">Ключ TCRF</label>
+                    <div class="ps-secret">
+                        <input id="tenchat_tcrf" class="ps-field-control ps-secret-control" type="password" name="tenchat_tcrf" autocomplete="off" spellcheck="false"
+                               value="{{ form.tenchat_tcrf if form else '' }}" placeholder="Значение куки TCRF" required>
+                        <button type="button" class="ps-iconbtn" data-secret-toggle aria-label="Показать ключ">{{ ui.icon('eye', 20) }}</button>
+                    </div>
+                    <p class="ps-field-hint">{{ ui.icon('key', 16) }}<span>Ключ живёт около 14 дней и обновляется при каждой публикации.</span></p>
+                </div>
+                <div class="app-actions">
+                    <button type="submit" class="ps-btn ps-btn--primary">{{ ui.icon('check', 20) }}<span class="ps-btn-label">Сохранить</span></button>
+                </div>
+            </form>
+            {% if creds %}
+            <form method="post" action="/tenchat/disconnect" class="inline-form" data-confirm="Отключить TenChat?" data-confirm-body="Ключ будет удалён." data-confirm-ok="Отключить">
+                <button type="submit" class="ps-btn ps-btn--danger ps-btn--sm">{{ ui.icon('close', 16) }}<span class="ps-btn-label">Отключить TenChat</span></button>
+            </form>
+            {% endif %}
+        </section>
+    </div>
+
+    <aside class="ps-panel">
+        <h2 class="ps-h2">Где взять ключ</h2>
+        <ol class="app-stack" style="margin:0; padding-left: 20px; color: var(--ink-secondary)">
+            <li>Откройте <a href="https://tenchat.ru" target="_blank" rel="noopener">tenchat.ru</a> и войдите в аккаунт.</li>
+            <li>Нажмите F12, чтобы открыть инструменты разработчика.</li>
+            <li>Вкладка «Application» → «Cookies» → https://tenchat.ru.</li>
+            <li>Найдите куку TCRF и скопируйте её значение.</li>
+            <li>Вставьте его в поле «Ключ TCRF» и нажмите «Сохранить».</li>
+        </ol>
+        <p class="form-hint">Перестала работать публикация — обновите ключ тем же способом.</p>
+    </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-secret-toggle]'); if (!b) return;
+    var input = b.parentNode.querySelector('input');
+    var show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    b.setAttribute('aria-label', show ? 'Скрыть ключ' : 'Показать ключ');
+});
+</script>
 {% endblock %}

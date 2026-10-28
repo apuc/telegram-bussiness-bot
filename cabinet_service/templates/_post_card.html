@@ -1,0 +1,26 @@
+{# Карточка поста (PostCard). Ожидает переменные post и platform_label. #}
+{#- Заголовок — первая строка, где есть хотя бы 4 знака (строка из одного эмодзи не годится) -#}
+{%- set lines = (post.content or '').strip().split('\n') | map('trim') | reject('equalto', '') | list -%}
+{%- set ns = namespace(idx=0) -%}
+{%- for l in lines %}{% if ns.idx == 0 and l|length > 3 %}{% set ns.idx = loop.index %}{% endif %}{% endfor -%}
+{%- set head_i = (ns.idx or 1) - 1 -%}
+{%- set title = (lines[head_i] if lines else 'Пост') | truncate(90, True, '…') -%}
+{%- set rest = lines[head_i + 1:] | join(' ') -%}
+<article class="ps-card">
+    <div class="ps-card-top">
+        {% if post.published %}
+        <span class="ps-badge ps-badge--success">{{ ui.icon('megaphone', 14) }}<span>Опубликован</span></span>
+        {% else %}
+        <span class="ps-badge ps-badge--ai">{{ ui.icon('sparkle', 14) }}<span>Сгенерирован ИИ</span></span>
+        {% endif %}
+        <span class="ps-card-channels">{{ platform_label(post.platform) }}{% if post.style %} · {{ post.style | truncate(24, True, '…') }}{% endif %}</span>
+    </div>
+    <h3 class="ps-card-title"><a class="ps-card-title-link" href="/posts/{{ post.id }}">{{ title }}</a></h3>
+    {% if rest %}<p class="ps-card-excerpt">{{ rest }}</p>{% endif %}
+    <div class="ps-card-foot">
+        <span>{{ post.created_at|local_dt }}</span>
+        <span class="ps-card-len">{{ (post.content or '')|length|num }} зн.</span>
+        {% if post.images %}<span class="ps-card-img">{{ ui.icon('image', 16) }}{{ post.images|length }}</span>{% endif %}
+        {{ ui.icon('chevron-right', 18, 'ps-card-chev') }}
+    </div>
+</article>

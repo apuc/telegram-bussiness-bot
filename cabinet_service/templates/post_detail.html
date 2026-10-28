@@ -1,449 +1,529 @@
 {% extends "base.html" %}
-{% block title %}Пост — Личный кабинет{% endblock %}
+{% block title %}Пост{% endblock %}
 {% block content %}
-<h1>Пост</h1>
-<div class="card">
-    <div class="post-meta">
-        {{ platform_label(post.platform) }} · {{ post.created_at }}
-        {% if post.style %} · Стиль: {{ post.style }}{% endif %}
+{%- set art_for = {'product': 'product', 'lifestyle': 'portrait', 'food': 'product', 'business': 'mockup', 'abstract': 'abstract',
+    'portrait': 'portrait', 'infographic': 'announce', 'banner': 'cover', 'nature': 'landscape', 'minimal': 'minimal',
+    'story': 'collage', 'before_after': 'collage'} -%}
+{%- set limits = {'telegram': 4096, 'instagram': 2200, 'linkedin': 3000, 'twitter': 280} -%}
+{%- set limit = limits.get(post.platform, 4096) -%}
+<div class="ps-main-head">
+    <div>
+        <a href="/history" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">Мои посты</span></a>
+        <h1 class="ps-h1">Пост</h1>
+        <p class="ps-lead">{{ platform_label(post.platform) }}{% if post.style %} · {{ post.style }}{% endif %} · {{ post.created_at|local_dt }}</p>
     </div>
-    {% if post.published %}
-    <div class="post-meta" style="color: var(--success-text);">
-        ✅ Опубликован в «{{ post.published_to }}» · {{ post.published_at }}
-    </div>
-    {% endif %}
-    {% if post.wishes %}
-    <div class="post-notes"><strong>Пожелания:</strong> {{ post.wishes }}</div>
-    {% endif %}
-</div>
-
-<!-- === ТЕКУЩИЙ ТЕКСТ ПОСТА === -->
-<div class="card" id="postCard">
-    <h2>📄 Текст поста</h2>
-    <div class="post-content" id="postContent">{{ post.content }}</div>
-    <div class="post-editor-actions" style="margin-top: 12px;">
-        <button type="button" class="copy-btn" onclick="copyPostText()">📋 Копировать</button>
-        <a class="copy-btn" href="/posts/{{ post.id }}/publish">📤 Опубликовать</a>
-        <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Редактировать вручную</a>
+    <div class="app-head-actions">
+        <form method="post" action="/posts/{{ post.id }}/delete" class="inline-form" data-confirm="Удалить пост?" data-confirm-body="Его версии и картинки тоже удалятся.">
+            <button type="submit" class="ps-iconbtn" aria-label="Удалить пост">{{ ui.icon('trash', 22) }}</button>
+        </form>
+        <a class="ps-btn ps-btn--primary" href="/posts/{{ post.id }}/publish">{{ ui.icon('send', 20) }}<span class="ps-btn-label">Опубликовать</span></a>
     </div>
 </div>
 
-<!-- === ЧАТ С НЕЙРОСЕТЬЮ === -->
-<div class="card">
-    <h2>🤖 Редактировать с помощью ИИ</h2>
-    <p class="form-hint">Напишите, что нужно изменить — нейросеть перепишет пост. Например: «сократи вдвое», «сделай официальнее», «добавь призыв к действию».</p>
+<div class="ps-split" style="--ps-aside: 360px">
+    <div class="app-stack-lg">
+        <!-- Текущий текст поста -->
+        <article class="ps-post" id="postCard">
+            <header class="ps-post-head">
+                <span class="ps-post-platform">{{ ui.icon('send' if post.platform == 'telegram' else 'news', 16) }}{{ platform_label(post.platform) }}</span>
+                {% if post.style %}<span class="ps-post-tag">{{ post.style }}</span>{% endif %}
+                <span class="ps-post-tag" id="postVersion"{% if not revisions %} hidden{% endif %}>Версия {{ revisions|length }}</span>
+                {% if post.published %}
+                <span class="ps-badge ps-badge--success">{{ ui.icon('megaphone', 14) }}<span>Опубликован{% if post.published_to %} в «{{ post.published_to }}»{% endif %}</span></span>
+                {% endif %}
+            </header>
+            {% if images %}
+            <div class="ps-post-image"><img src="/media/{{ images[0].filename }}" alt="" style="object-fit:cover"></div>
+            {% endif %}
+            <div class="ps-post-text"><p id="postContent">{{ post.content }}</p></div>
+            <footer class="ps-post-foot">
+                <span class="ps-post-count{% if post.content|length > limit %} is-over{% endif %}" id="postCount" data-limit="{{ limit }}">{{ post.content|length|num }} / {{ limit|num }} зн.</span>
+                <span class="ps-post-note is-danger" id="postOver"{% if post.content|length <= limit %} hidden{% endif %}>{{ ui.icon('alert', 14) }}Длиннее лимита платформы — сократите текст</span>
+                {% if post.platform == 'telegram' and images and post.content|length > 1024 %}
+                <span class="ps-post-note">{{ ui.icon('info', 14) }}Длиннее 1 024 знаков: фото уйдёт без подписи, текст — следующим сообщением</span>
+                {% endif %}
+                <div class="ps-post-actions">
+                    <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" onclick="copyPostText()">{{ ui.icon('copy', 16) }}<span class="ps-btn-label">Копировать</span></button>
+                    <a class="ps-btn ps-btn--quiet ps-btn--sm" href="/posts/{{ post.id }}/edit">{{ ui.icon('edit', 16) }}<span class="ps-btn-label">Изменить вручную</span></a>
+                </div>
+            </footer>
+        </article>
+        {% if post.wishes %}
+        <p class="form-hint" style="margin-top: calc(var(--space-4) * -1)">Пожелания: {{ post.wishes }}</p>
+        {% endif %}
 
-    <!-- История чата -->
-    <div class="ai-chat" id="aiChat">
-        <div class="ai-chat-msg ai-chat-msg--system">
-            <div class="ai-chat-bubble ai-chat-bubble--system">Пост сгенерирован. Напишите инструкцию, чтобы изменить его.</div>
-        </div>
-    </div>
-
-    <!-- Лоадер -->
-    <div id="aiChatLoader" class="task-loader" style="display:none; padding: 15px;">
-        <div class="spinner"></div>
-        <div class="task-loader-text">Нейросеть переписывает пост...</div>
-    </div>
-    <div id="aiChatError" class="task-error"></div>
-
-    <!-- Поле ввода -->
-    <div class="ai-chat-input">
-        <textarea id="aiChatInput" class="ai-chat-textarea" rows="2"
-                  placeholder="Например: сократи вдвое, сделай веселее, добавь эмодзи..."
-                  onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendAiInstruction();}"></textarea>
-        <button type="button" class="copy-btn" onclick="sendAiInstruction()" id="aiChatSendBtn">→ Отправить</button>
-    </div>
-</div>
-
-<!-- === СКРИПТ ЧАТА === -->
-<script>
-var _currentPostContent = {{ post.content | tojson }};
-
-function copyPostText() {
-    navigator.clipboard.writeText(document.getElementById('postContent').textContent);
-}
-
-function sendAiInstruction() {
-    var input = document.getElementById('aiChatInput');
-    var instruction = input.value.trim();
-    if (!instruction) return;
-
-    var errEl = document.getElementById('aiChatError');
-    var loader = document.getElementById('aiChatLoader');
-    var sendBtn = document.getElementById('aiChatSendBtn');
-
-    errEl.style.display = 'none';
-    loader.style.display = 'flex';
-    sendBtn.disabled = true;
-    input.disabled = true;
-
-    // Добавляем сообщение пользователя в чат
-    addChatMsg('user', instruction);
-    input.value = '';
-
-    var fd = new FormData();
-    fd.append('task_type', 'modify_post');
-    fd.append('post_id', '{{ post.id }}');
-    fd.append('instruction', instruction);
-
-    fetch('/api/tasks', { method: 'POST', body: fd })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.error) { showAiError(errEl, data.error, loader, sendBtn, input); return; }
-            pollModifyTask(data.task_id, errEl, loader, sendBtn, input, instruction);
-        })
-        .catch(function(e) { showAiError(errEl, 'Ошибка сети: ' + e, loader, sendBtn, input); });
-}
-
-function pollModifyTask(taskId, errEl, loader, sendBtn, input, instruction) {
-    fetch('/api/tasks/' + taskId)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.status === 'running' || data.status === 'pending') {
-                setTimeout(function() { pollModifyTask(taskId, errEl, loader, sendBtn, input, instruction); }, 1500);
-                return;
-            }
-            loader.style.display = 'none';
-            sendBtn.disabled = false;
-            input.disabled = false;
-            input.focus();
-
-            if (data.status === 'error') {
-                showAiError(errEl, data.error || 'Ошибка модификации', null, null, null);
-                return;
-            }
-            if (data.status === 'done' && data.result) {
-                var newContent = data.result.content;
-                _currentPostContent = newContent;
-
-                // Обновляем текст поста на странице
-                document.getElementById('postContent').textContent = newContent;
-
-                // Добавляем ответ ИИ в чат
-                addChatMsg('ai', newContent, instruction);
-
-                // Убираем ошибку
-                errEl.style.display = 'none';
-            }
-        })
-        .catch(function(e) { showAiError(errEl, 'Ошибка сети: ' + e, null, null, null); });
-}
-
-function addChatMsg(role, text, instruction) {
-    var chat = document.getElementById('aiChat');
-    var now = new Date();
-    var dateStr = now.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
-
-    var html = '';
-    if (role === 'user') {
-        html = '<div class="ai-chat-msg ai-chat-msg--user">' +
-            '<div class="ai-chat-bubble ai-chat-bubble--user">' + escH(text) + '</div>' +
-            '<div class="ai-chat-time">' + dateStr + '</div></div>';
-    } else {
-        var preview = text.substring(0, 200) + (text.length > 200 ? '…' : '');
-        var fullId = 'aifull-' + Date.now();
-        html = '<div class="ai-chat-msg ai-chat-msg--ai">' +
-            '<div class="ai-chat-meta">🤖 ИИ изменил пост по запросу: «' + escH(instruction || '') + '»</div>' +
-            '<div class="ai-chat-bubble ai-chat-bubble--ai">' +
-            '<div class="ai-chat-preview" id="aiprev-' + fullId + '">' + escH(preview) + '</div>' +
-            '<div class="ai-chat-full" id="' + fullId + '" style="display:none"><pre>' + escH(text) + '</pre></div>' +
-            '<button type="button" class="button-link" onclick="toggleAiFull(\'' + fullId + '\')" style="margin-top:6px;">Показать весь текст</button>' +
-            '</div>' +
-            '<div class="ai-chat-time">' + dateStr + '</div></div>';
-    }
-
-    chat.insertAdjacentHTML('beforeend', html);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-function toggleAiFull(id) {
-    var prev = document.getElementById('aiprev-' + id);
-    var full = document.getElementById(id);
-    if (!prev || !full) return;
-    if (full.style.display === 'none') {
-        prev.style.display = 'none';
-        full.style.display = '';
-    } else {
-        full.style.display = 'none';
-        prev.style.display = '';
-    }
-}
-
-function showAiError(el, msg, loader, sendBtn, input) {
-    if (loader) loader.style.display = 'none';
-    if (sendBtn) { sendBtn.disabled = false; }
-    if (input) { input.disabled = false; input.focus(); }
-    el.textContent = msg;
-    el.style.display = 'block';
-}
-
-function escH(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-</script>
-
-<!-- === ГАЛЕРЕЯ ИЗОБРАЖЕНИЙ === -->
-<div class="card">
-    <h2>🖼 Изображения</h2>
-    {% if images %}
-    <div class="media-grid">
-        {% for img in images %}
-        <div class="media-card">
-            <a href="/media/{{ img.filename }}" class="media-link" target="_blank">
-                <img src="/media/{{ img.filename }}" class="media-thumb" alt="">
-            </a>
-            <div class="media-body">
-                <span class="form-hint">{{ img.source }} · {{ img.created_at }}</span>
-                <form action="/posts/{{ post.id }}/images/{{ img.id }}/delete" method="post" class="inline-form"
-                      onsubmit="return confirm('Удалить изображение?')">
-                    <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
-                </form>
+        <!-- Чат правок с ИИ -->
+        <section class="app-stack" aria-labelledby="chat-title">
+            <h2 class="ps-h2" id="chat-title">Правки с ИИ</h2>
+            <div class="app-stack" id="aiChat" style="gap: var(--space-6)">
+                <div class="ps-msg ps-msg--ai">
+                    <span class="ps-msg-avatar" aria-hidden="true">{{ ui.mark('chatav0', 'color', 32) }}</span>
+                    <div class="ps-msg-body">
+                        <div class="ps-msg-meta"><span class="ps-msg-author">Пресс-секретарь</span><span class="ps-ai-tag">ИИ</span></div>
+                        <div class="ps-msg-bubble"><p>Пост готов. Напишите, что изменить, или выберите готовую команду ниже.</p></div>
+                    </div>
+                </div>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p class="form-hint">Изображений пока нет.</p>
-    {% endif %}
+            <div id="aiChatLoader" style="display:none"><div class="ps-thinking" role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Переписываю…</span></div></div>
+            <div id="aiChatError" class="task-error" role="alert"></div>
 
-    <!-- Загрузка файлов -->
-    <h3>📎 Загрузить изображения</h3>
-    <form method="post" action="/posts/{{ post.id }}/images/upload" enctype="multipart/form-data" class="form">
-        <label>Файлы (можно несколько)
-            <input type="file" name="files" accept="image/*" multiple required>
-        </label>
-        <button type="submit">📎 Загрузить</button>
-    </form>
-
-    <!-- Генерация изображения -->
-    <h3>🎨 Сгенерировать изображение для поста</h3>
-    <div id="postImgError" class="task-error"></div>
-
-    <!-- Лоадер анализа -->
-    <div id="postImgAnalyzeLoader" class="task-loader" style="padding: 20px;">
-        <div class="spinner"></div>
-        <div class="task-loader-text">Анализирую пост...</div>
-        <div class="task-loader-sub">ИИ подбирает лучшие варианты</div>
+            <div class="ps-composer">
+                <div class="ps-composer-suggest" id="aiSuggest">
+                    {% for s in ['Сократи вдвое', 'Сделай официальнее', 'Добавь призыв к действию', 'Перепиши в стиле эксперта'] %}
+                    <button type="button" class="ps-chip ps-chip--sm" data-suggest="{{ s }}">{{ ui.icon('sparkle', 16) }}<span>{{ s }}</span></button>
+                    {% endfor %}
+                </div>
+                <div class="ps-composer-row">
+                    <textarea id="aiChatInput" class="ps-composer-input" rows="1" aria-label="Что изменить в посте"
+                              placeholder="Что изменить? Например: «сократи вдвое»"
+                              onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendAiInstruction();}"></textarea>
+                    <button type="button" class="ps-iconbtn ps-iconbtn--filled" id="aiChatSendBtn" aria-label="Отправить" onclick="sendAiInstruction()" disabled>{{ ui.icon('send', 22) }}</button>
+                </div>
+                <p class="ps-composer-note">Пресс-секретарь пишет черновик. В канал пост уходит только по вашей команде.</p>
+            </div>
+        </section>
     </div>
 
-    <!-- Лоадер генерации -->
-    <div id="postImgGenLoader" class="task-loader" style="padding: 20px;">
-        <div class="spinner"></div>
-        <div class="task-loader-text">Генерирую изображение...</div>
-        <div class="task-loader-sub">Это может занять 15–60 секунд</div>
-    </div>
+    <aside class="app-stack-lg">
+        <!-- История версий -->
+        <section class="ps-panel" aria-labelledby="ver-title">
+            <h2 class="ps-h2" id="ver-title">История изменений</h2>
+            {% if revisions %}
+            <ol class="ps-history" aria-label="История изменений" id="versionList">
+                {% for r in revisions %}
+                <li class="ps-history-item{% if loop.first %} is-active{% endif %}" data-rev="{{ r.id }}">
+                    <span class="ps-history-dot" aria-hidden="true"></span>
+                    <span class="ps-history-text">
+                        <span class="ps-history-title">Версия {{ loop.revindex }}</span>
+                        <span class="ps-history-meta">{{ r.created_at|local_dt('%H:%M · %d.%m.%Y') }} · {{ r.content|length|num }} зн.</span>
+                    </span>
+                    {% if loop.first %}
+                    <span class="ps-history-current">Текущая</span>
+                    {% else %}
+                    <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" data-restore="{{ r.id }}">{{ ui.icon('history', 16) }}<span class="ps-btn-label">Вернуть</span></button>
+                    {% endif %}
+                    <template data-content>{{ r.content }}</template>
+                </li>
+                {% endfor %}
+            </ol>
+            {% else %}
+            <p class="form-hint" id="versionEmpty">Каждая правка в чате и вручную станет версией — любую можно будет вернуть.</p>
+            {% endif %}
+        </section>
 
-    <div id="postImgResult" class="task-result"></div>
-
-    <!-- Шаг 1: Выбор концепции -->
-    <div id="postImgConceptsSection">
-        <p class="form-hint" style="margin-bottom: 10px;">ИИ проанализирует пост и предложит варианты:</p>
-        <button type="button" class="copy-btn" id="postImgAnalyzeBtn" onclick="startAnalyzeConcepts()">🤖 ИИ подберёт вариант</button>
-
-        <div style="margin-top: 12px;">
-            <p class="form-hint" style="margin-bottom: 8px;">Или выбери шаблон вручную:</p>
-            <div class="template-grid" id="postImgGrid">
-                {% for t in templates %}
-                <button type="button" class="template-card" data-key="{{ t.key }}"
-                        data-prompt="{{ t.prompt }}" data-style="{{ t.style }}" data-size="{{ t.size }}">
-                    <span class="template-icon">{{ t.icon }}</span>
-                    <span class="template-name">{{ t.name }}</span>
-                    <span class="template-hint">{{ t.hint }}</span>
-                </button>
+        <!-- Картинки поста -->
+        <section class="ps-panel" aria-labelledby="img-title">
+            <h2 class="ps-h2" id="img-title">Картинки</h2>
+            {% if images %}
+            <div class="app-gallery" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3)">
+                {% for img in images %}
+                <figure class="app-gallery-item" style="margin:0">
+                    <a href="/media/{{ img.filename }}" target="_blank" rel="noopener" aria-label="Открыть картинку"><img src="/media/{{ img.filename }}" alt=""></a>
+                    <figcaption class="app-actions" style="padding: 4px; justify-content: space-between">
+                        <span class="app-caption" style="padding-left: 8px">{{ 'ИИ' if img.source == 'generated' else 'Загружена' }}</span>
+                        <form action="/posts/{{ post.id }}/images/{{ img.id }}/delete" method="post" class="inline-form" data-confirm="Удалить картинку?">
+                            <button type="submit" class="ps-iconbtn" aria-label="Удалить картинку">{{ ui.icon('trash', 18) }}</button>
+                        </form>
+                    </figcaption>
+                </figure>
                 {% endfor %}
             </div>
+            {% endif %}
+
+            <form method="post" action="/posts/{{ post.id }}/images/upload" enctype="multipart/form-data" id="uploadForm">
+                <label class="ps-drop" id="uploadDrop">
+                    <input type="file" name="files" accept="image/*" multiple required class="ps-drop-input" id="uploadInput">
+                    <span class="ps-drop-icon" aria-hidden="true">{{ ui.icon('upload', 24) }}</span>
+                    <span class="ps-drop-title">Перетащите фото или выберите</span>
+                    <span class="ps-drop-hint">Можно несколько файлов</span>
+                </label>
+            </form>
+
+            <div id="postImgError" class="task-error" role="alert"></div>
+            <div id="postImgAnalyzeLoader" class="task-loader">
+                <div class="ps-thinking" role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Подбираю 4 концепции…</span></div>
+            </div>
+            <div id="postImgGenLoader" class="task-loader">
+                <div class="ps-thinking" role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Рисую картинку…</span></div>
+                <span class="task-loader-sub">Обычно 15–60 секунд</span>
+            </div>
+            <div id="postImgResult" class="task-result"></div>
+
+            <div id="postImgConceptsSection" class="app-stack">
+                <button type="button" class="ps-btn ps-btn--secondary ps-btn--block" id="postImgAnalyzeBtn" onclick="startAnalyzeConcepts()">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Подобрать концепцию</span></button>
+                <details>
+                    <summary>Сгенерировать по шаблону</summary>
+                    <div class="ps-presets" id="postImgGrid" style="margin-top: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(96px, 1fr))">
+                        {% for t in templates %}
+                        <button type="button" class="ps-preset" data-key="{{ t.key }}" title="{{ t.hint }}">
+                            <span class="ps-preset-art" aria-hidden="true"><svg viewBox="0 0 64 48" preserveAspectRatio="xMidYMid slice">{{ ui.PRESET_ART[art_for.get(t.key, 'minimal')] | safe }}</svg></span>
+                            <span class="ps-preset-label">{{ t.name }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </details>
+            </div>
+
+            <div id="postImgConceptsList" class="app-stack" style="display:none;">
+                <div class="ps-choices-grid" id="postImgConcepts" style="grid-template-columns: 1fr"></div>
+                <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" onclick="resetConcepts()">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">К шаблонам</span></button>
+            </div>
+
+            <form method="post" action="/posts/{{ post.id }}/images/generate" id="postImgForm" style="display:none;">
+                <input type="hidden" name="task_type" id="postImgTaskType" value="generate_post_image">
+                <input type="hidden" name="post_id" value="{{ post.id }}">
+                <input type="hidden" name="template_key" id="postImgTemplateKey" value="">
+                <input type="hidden" name="concept_prompt" id="postImgConceptPrompt" value="">
+                <input type="hidden" name="concept_style" id="postImgConceptStyle" value="">
+                <input type="hidden" name="concept_size" id="postImgConceptSize" value="">
+            </form>
+        </section>
+    </aside>
+</div>
+
+<template id="tpl-icon-history">{{ ui.icon('history', 16) }}</template>
+<template id="tpl-msg-ai">
+    <div class="ps-msg ps-msg--ai">
+        <span class="ps-msg-avatar" aria-hidden="true">{{ ui.mark('chatav1', 'color', 32) }}</span>
+        <div class="ps-msg-body">
+            <div class="ps-msg-meta"><span class="ps-msg-author">Пресс-секретарь</span><span class="ps-ai-tag">ИИ</span><time></time></div>
+            <div class="ps-msg-bubble"><p data-text></p></div>
+            <div class="ps-msg-actions">
+                <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" data-act="copy">{{ ui.icon('copy', 16) }}<span class="ps-btn-label">Копировать</span></button>
+                <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" data-act="again">{{ ui.icon('refresh', 16) }}<span class="ps-btn-label">Другой вариант</span></button>
+            </div>
         </div>
     </div>
-
-    <!-- Шаг 2: Концепции от ИИ (скрыт до анализа) -->
-    <div id="postImgConceptsList" style="display:none;">
-        <h4 style="margin-bottom: 10px;">Выбери вариант:</h4>
-        <div id="postImgConcepts" class="concept-grid"></div>
-        <button type="button" class="button-link" style="margin-top: 10px;" onclick="resetConcepts()">← Назад к шаблонам</button>
+</template>
+<template id="tpl-msg-user">
+    <div class="ps-msg ps-msg--user">
+        <div class="ps-msg-body">
+            <div class="ps-msg-meta"><time></time></div>
+            <div class="ps-msg-bubble"><p data-text></p></div>
+        </div>
     </div>
+</template>
+{% endblock %}
 
-    <!-- Скрытая форма для отправки -->
-    <form method="post" action="/posts/{{ post.id }}/images/generate" class="form" id="postImgForm" style="display:none;">
-        <input type="hidden" name="task_type" id="postImgTaskType" value="generate_post_image">
-        <input type="hidden" name="post_id" value="{{ post.id }}">
-        <input type="hidden" name="template_key" id="postImgTemplateKey" value="">
-        <input type="hidden" name="concept_prompt" id="postImgConceptPrompt" value="">
-        <input type="hidden" name="concept_style" id="postImgConceptStyle" value="">
-        <input type="hidden" name="concept_size" id="postImgConceptSize" value="">
-        <button type="submit" id="postImgSubmitBtn">🎨 Сгенерировать</button>
-    </form>
+{% block scripts %}
+<script>
+var _currentPostContent = {{ post.content | tojson }};
+var _lastInstruction = '';
+var POST_ID = {{ post.id }};
 
-    <script>
-    (function() {
-        var form = document.getElementById('postImgForm');
-        var grid = document.getElementById('postImgGrid');
-        if (!form || !grid) return;
+function copyPostText() { copyText(document.getElementById('postContent').textContent); }
 
-        // Клик по шаблону — сразу генерация
-        grid.addEventListener('click', function(e) {
-            var card = e.target.closest('.template-card');
-            if (!card) return;
-            grid.querySelectorAll('.template-card').forEach(function(c) { c.classList.remove('selected'); });
-            card.classList.add('selected');
+function setPostContent(text) {
+    _currentPostContent = text;
+    document.getElementById('postContent').textContent = text;
+    var c = document.getElementById('postCount'), limit = +c.getAttribute('data-limit');
+    c.textContent = text.length.toLocaleString('ru-RU') + ' / ' + limit.toLocaleString('ru-RU') + ' зн.';
+    c.classList.toggle('is-over', text.length > limit);
+    document.getElementById('postOver').hidden = text.length <= limit;
+}
 
-            document.getElementById('postImgTaskType').value = 'generate_post_image';
-            document.getElementById('postImgTemplateKey').value = card.dataset.key || '';
-            document.getElementById('postImgConceptPrompt').value = '';
-            document.getElementById('postImgConceptStyle').value = '';
-            document.getElementById('postImgConceptSize').value = '';
+/* --- Композер --- */
+(function () {
+    var input = document.getElementById('aiChatInput'), send = document.getElementById('aiChatSendBtn');
+    function grow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 200) + 'px'; send.disabled = !input.value.trim() || input.disabled; }
+    input.addEventListener('input', grow);
+    document.getElementById('aiSuggest').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-suggest]'); if (!b) return;
+        input.value = b.getAttribute('data-suggest'); grow(); input.focus();
+    });
+    window._growComposer = grow;
+    grow();
+})();
 
-            runPostImgGeneration('postImgConceptsSection');
-        });
-    })();
+var _aiBusy = false;
 
-    function startAnalyzeConcepts() {
-        var errEl = document.getElementById('postImgError');
-        var loader = document.getElementById('postImgAnalyzeLoader');
-        var section = document.getElementById('postImgConceptsSection');
-        var conceptsList = document.getElementById('postImgConceptsList');
+/* Пока ИИ отвечает — композер и кнопки «Другой вариант» выключены: параллельных правок не бывает */
+function setAiBusy(on) {
+    _aiBusy = on;
+    var input = document.getElementById('aiChatInput');
+    input.disabled = on;
+    document.getElementById('aiChatLoader').style.display = on ? 'block' : 'none';
+    document.getElementById('aiSuggest').hidden = on;
+    document.querySelectorAll('[data-act="again"]').forEach(function (b) { b.disabled = on; });
+    window._growComposer();
+    if (!on) input.focus();
+}
 
-        errEl.style.display = 'none';
-        section.style.display = 'none';
-        conceptsList.style.display = 'none';
-        loader.style.display = 'flex';
+/* base — текст, к которому применяется правка: для «Другого варианта» это текст до первой попытки */
+function sendAiInstruction(forced, base) {
+    if (_aiBusy) return;
+    var input = document.getElementById('aiChatInput');
+    var instruction = (forced || input.value).trim();
+    if (!instruction) return;
+    var errEl = document.getElementById('aiChatError');
+    errEl.style.display = 'none';
+    addChatMsg('user', base !== undefined ? 'Другой вариант: ' + instruction : instruction);
+    input.value = '';
+    setAiBusy(true);
+    var prev = _currentPostContent;
 
+    function run() {
         var fd = new FormData();
-        fd.append('task_type', 'analyze_post_image');
-        fd.append('post_id', '{{ post.id }}');
-
-        fetch('/api/tasks', { method: 'POST', body: fd })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.error) { showError(errEl, data.error, section, loader); return; }
-                pollAnalyze(data.task_id, errEl, loader, section, conceptsList);
+        fd.append('task_type', 'modify_post');
+        fd.append('post_id', POST_ID);
+        fd.append('instruction', instruction);
+        Press.fetchJSON('/api/tasks', { method: 'POST', body: fd })
+            .then(function (data) {
+                if (!data.task_id) { aiFail(data.error || 'Не удалось запустить правку. Повторите.'); return; }
+                Press.pollTask(data.task_id, {
+                    done: function (result) {
+                        setAiBusy(false);
+                        var basis = base !== undefined ? base : prev;
+                        setPostContent(result.content);
+                        addChatMsg('ai', 'Готово: ' + result.content.length.toLocaleString('ru-RU') + ' зн. вместо ' + basis.length.toLocaleString('ru-RU') + '. Прошлая версия — в истории.', { instruction: instruction, base: basis });
+                        addVersion(result.content, prev);
+                    },
+                    fail: aiFail
+                });
             })
-            .catch(function(err) { showError(errEl, 'Ошибка сети: ' + err.message, section, loader); });
+            .catch(function (err) { if (err.message !== Press.SESSION) aiFail(err.message); });
     }
-
-    function pollAnalyze(taskId, errEl, loader, section, conceptsList) {
-        fetch('/api/tasks/' + taskId)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.status === 'running' || data.status === 'pending') {
-                    setTimeout(function() { pollAnalyze(taskId, errEl, loader, section, conceptsList); }, 1500);
-                    return;
-                }
-                loader.style.display = 'none';
-                if (data.status === 'error') { showError(errEl, data.error, section, null); return; }
-                if (data.status === 'done' && data.result && data.result.concepts) {
-                    showConcepts(data.result.concepts, conceptsList, section);
-                }
+    /* Другой вариант: сначала возвращаем текст до правки, затем повторяем команду — получается альтернатива, а не правка правки */
+    if (base !== undefined && base !== _currentPostContent) {
+        var fd = new FormData(); fd.append('content', base);
+        Press.fetchJSON('/api/posts/' + POST_ID + '/edit-text', { method: 'POST', body: fd })
+            .then(function (d) {
+                if (!d.ok) { aiFail(d.error || 'Не удалось подготовить другой вариант. Повторите.'); return; }
+                addVersion(d.content, prev); setPostContent(d.content); prev = d.content; run();
             })
-            .catch(function(err) { showError(errEl, 'Ошибка сети: ' + err.message, section, null); });
+            .catch(function (err) { if (err.message !== Press.SESSION) aiFail(err.message); });
+    } else {
+        run();
     }
+}
 
-    function showConcepts(concepts, container, hiddenSection) {
-        var html = '';
-        concepts.forEach(function(c, i) {
-            var styleLabels = {photo:'Фото',illustration:'Иллюстрация',minimal:'Минимализм','3d':'3D',flat:'Плоская графика'};
-            var sizeLabels = {square:'Квадрат',wide:'Широкий',tall:'Вертикальный'};
-            html += '<button type="button" class="concept-card" onclick="selectConcept(' + i + ')">' +
-                '<div class="concept-title">' + escH(c.title) + '</div>' +
-                '<div class="concept-desc">' + escH(c.description) + '</div>' +
-                '<div class="concept-meta">' +
-                '<span class="concept-tag">' + (styleLabels[c.style] || c.style) + '</span> ' +
-                '<span class="concept-tag">' + (sizeLabels[c.size] || c.size) + '</span>' +
-                '</div></button>';
+function aiFail(msg) {
+    setAiBusy(false);
+    var el = document.getElementById('aiChatError');
+    el.textContent = Press.humanError(msg); el.title = msg || '';
+    el.style.display = 'flex';
+}
+
+function addChatMsg(role, text, ctx) {
+    var tpl = document.getElementById(role === 'user' ? 'tpl-msg-user' : 'tpl-msg-ai').content.firstElementChild.cloneNode(true);
+    tpl.querySelector('[data-text]').textContent = text;
+    tpl.querySelector('time').textContent = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+    var copy = tpl.querySelector('[data-act="copy"]');
+    if (copy) copy.addEventListener('click', function () { copyText(_currentPostContent); });
+    var again = tpl.querySelector('[data-act="again"]');
+    if (again) {
+        if (ctx) again.addEventListener('click', function () { sendAiInstruction(ctx.instruction, ctx.base); });
+        else again.remove();
+    }
+    var chat = document.getElementById('aiChat');
+    chat.appendChild(tpl);
+    tpl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* --- История версий --- */
+function versionItem(title, meta, content, current) {
+    var li = document.createElement('li');
+    li.className = 'ps-history-item' + (current ? ' is-active' : '');
+    li.innerHTML = '<span class="ps-history-dot" aria-hidden="true"></span><span class="ps-history-text"><span class="ps-history-title"></span><span class="ps-history-meta"></span></span>' +
+        (current ? '<span class="ps-history-current">Текущая</span>' : restoreBtnHtml()) + '<template data-content></template>';
+    li.querySelector('.ps-history-title').textContent = title;
+    li.querySelector('.ps-history-meta').textContent = meta;
+    li.querySelector('template').innerHTML = escHtml(content);
+    return li;
+}
+function restoreBtnHtml() {
+    return '<button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" data-restore>' + document.getElementById('tpl-icon-history').innerHTML + '<span class="ps-btn-label">Вернуть</span></button>';
+}
+function escHtml(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function addVersion(content, prevContent) {
+    var list = document.getElementById('versionList');
+    var now = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+    if (!list) {
+        // Первая правка: показываем исходный текст как версию 1
+        list = document.createElement('ol');
+        list.className = 'ps-history'; list.id = 'versionList'; list.setAttribute('aria-label', 'История изменений');
+        var empty = document.getElementById('versionEmpty');
+        empty.parentNode.replaceChild(list, empty);
+        list.appendChild(versionItem('Исходная версия', prevContent.length.toLocaleString('ru-RU') + ' зн.', prevContent, false));
+    }
+    var cur = list.querySelector('.is-active');
+    if (cur) {
+        cur.classList.remove('is-active');
+        var badge = cur.querySelector('.ps-history-current');
+        if (badge) badge.outerHTML = restoreBtnHtml();
+    }
+    var n = (+list.getAttribute('data-total') || list.children.length) + 1;
+    list.setAttribute('data-total', n);
+    list.insertBefore(versionItem('Версия ' + n, now + ' · ' + content.length.toLocaleString('ru-RU') + ' зн.', content, true), list.firstChild);
+    var tag = document.getElementById('postVersion');
+    tag.hidden = false; tag.textContent = 'Версия ' + n;
+}
+document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-restore]'); if (!b || _aiBusy) return;
+    var li = b.closest('.ps-history-item');
+    var content = li.querySelector('template[data-content]').content.textContent;
+    var prev = _currentPostContent;
+    b.disabled = true;
+    var fd = new FormData(); fd.append('content', content);
+    Press.fetchJSON('/api/posts/' + POST_ID + '/edit-text', { method: 'POST', body: fd })
+        .then(function (d) {
+            b.disabled = false;
+            if (d.ok) {
+                setPostContent(d.content);
+                addVersion(d.content, prev);
+                Press.toast('Версия возвращена', 'success', 'Она стала новой текущей версией.');
+            } else { Press.toast('Не удалось вернуть версию', 'danger', Press.humanError(d.error)); }
+        })
+        .catch(function (err) { b.disabled = false; if (err.message !== Press.SESSION) Press.toast('Не удалось вернуть версию', 'danger', err.message); });
+});
+
+/* --- Загрузка фото: только картинки, отправляем сразу после выбора --- */
+(function () {
+    var drop = document.getElementById('uploadDrop'), input = document.getElementById('uploadInput'), form = document.getElementById('uploadForm');
+    function sendIfImages(files) {
+        var imgs = Array.prototype.filter.call(files, function (f) { return /^image\//.test(f.type); });
+        if (!imgs.length) { Press.toast('Это не картинка', 'warning', 'Загрузите JPG, PNG или WebP.'); input.value = ''; return; }
+        if (imgs.length < files.length) Press.toast('Часть файлов пропущена', 'warning', 'Загружаю только картинки: ' + imgs.length + ' из ' + files.length + '.');
+        var dt = new DataTransfer(); imgs.forEach(function (f) { dt.items.add(f); });
+        input.files = dt.files;
+        form.submit();
+    }
+    input.addEventListener('change', function () { if (input.files.length) sendIfImages(input.files); });
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('is-over'); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('is-over'); if (e.dataTransfer.files.length) sendIfImages(e.dataTransfer.files); });
+})();
+
+/* --- Генерация картинки к посту --- */
+(function() {
+    var grid = document.getElementById('postImgGrid');
+    if (!grid) return;
+    grid.addEventListener('click', function(e) {
+        var card = e.target.closest('.ps-preset');
+        if (!card) return;
+        grid.querySelectorAll('.ps-preset').forEach(function(c) { c.classList.toggle('is-selected', c === card); });
+        document.getElementById('postImgTaskType').value = 'generate_post_image';
+        document.getElementById('postImgTemplateKey').value = card.dataset.key || '';
+        document.getElementById('postImgConceptPrompt').value = '';
+        document.getElementById('postImgConceptStyle').value = '';
+        document.getElementById('postImgConceptSize').value = '';
+        runPostImgGeneration('postImgConceptsSection');
+    });
+})();
+
+function startAnalyzeConcepts() {
+    var errEl = document.getElementById('postImgError');
+    var loader = document.getElementById('postImgAnalyzeLoader');
+    var section = document.getElementById('postImgConceptsSection');
+    var conceptsList = document.getElementById('postImgConceptsList');
+    if (loader.style.display === 'flex') return;
+
+    errEl.style.display = 'none';
+    section.style.display = 'none';
+    conceptsList.style.display = 'none';
+    loader.style.display = 'flex';
+
+    var fd = new FormData();
+    fd.append('task_type', 'analyze_post_image');
+    fd.append('post_id', POST_ID);
+
+    function fail(msg) { showError(errEl, msg, section, loader); }
+    Press.fetchJSON('/api/tasks', { method: 'POST', body: fd })
+        .then(function(data) {
+            if (!data.task_id) { fail(data.error || 'Не удалось начать подбор. Повторите.'); return; }
+            Press.pollTask(data.task_id, {
+                done: function (result) {
+                    loader.style.display = 'none';
+                    /* Без концепций — возвращаем кнопки, а не оставляем пустую панель */
+                    if (Array.isArray(result.concepts) && result.concepts.length) showConcepts(result.concepts);
+                    else fail('ИИ не предложил концепций. Попробуйте ещё раз или выберите шаблон.');
+                },
+                fail: fail
+            });
+        })
+        .catch(function(err) { if (err.message !== Press.SESSION) fail(err.message); });
+}
+
+function showConcepts(concepts) {
+    var styleLabels = {photo: 'Фото', illustration: 'Иллюстрация', minimal: 'Минимализм', '3d': '3D', flat: 'Плоская графика'};
+    var sizeLabels = {square: 'Квадрат', wide: 'Широкий', tall: 'Вертикальный'};
+    var box = document.getElementById('postImgConcepts');
+    box.innerHTML = '';
+    box.setAttribute('role', 'list');
+    concepts.forEach(function(c, i) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'ps-choice'; b.setAttribute('role', 'listitem');
+        b.innerHTML = '<span class="ps-choice-body no-icon"><span class="ps-choice-text">' +
+            '<span class="ps-choice-kicker"></span><span class="ps-choice-title"></span><span class="ps-choice-desc"></span>' +
+            '<span class="app-legend" style="margin-top:var(--space-2)"></span></span></span>';
+        b.querySelector('.ps-choice-kicker').textContent = 'Концепция ' + (i + 1);
+        b.querySelector('.ps-choice-title').textContent = c.title || '';
+        b.querySelector('.ps-choice-desc').textContent = c.description || '';
+        var tags = b.querySelector('.app-legend');
+        [styleLabels[c.style] || c.style, sizeLabels[c.size] || c.size].forEach(function (t) {
+            if (!t) return; var s = document.createElement('span'); s.className = 'ps-post-tag'; s.textContent = t; tags.appendChild(s);
         });
-        document.getElementById('postImgConcepts').innerHTML = html;
-        document.getElementById('postImgConceptsList').style.display = 'block';
+        b.addEventListener('click', function () { selectConcept(i); });
+        box.appendChild(b);
+    });
+    document.getElementById('postImgConceptsList').style.display = '';
+    window._postImgConcepts = concepts;
+}
 
-        // Сохраняем концепции для выбора
-        window._postImgConcepts = concepts;
-    }
+function selectConcept(idx) {
+    var c = window._postImgConcepts[idx];
+    if (!c) return;
+    document.getElementById('postImgTaskType').value = 'generate_post_image_with_concept';
+    document.getElementById('postImgTemplateKey').value = '';
+    document.getElementById('postImgConceptPrompt').value = c.description;
+    document.getElementById('postImgConceptStyle').value = c.style || 'none';
+    document.getElementById('postImgConceptSize').value = c.size || 'wide';
+    runPostImgGeneration('postImgConceptsList');
+}
 
-    function selectConcept(idx) {
-        var c = window._postImgConcepts[idx];
-        if (!c) return;
+function runPostImgGeneration(hideSectionId) {
+    var form = document.getElementById('postImgForm');
+    var hideSection = document.getElementById(hideSectionId);
+    var genLoader = document.getElementById('postImgGenLoader');
+    var errEl = document.getElementById('postImgError');
+    if (genLoader.style.display === 'flex') return;
 
-        document.getElementById('postImgTaskType').value = 'generate_post_image_with_concept';
-        document.getElementById('postImgTemplateKey').value = '';
-        document.getElementById('postImgConceptPrompt').value = c.description;
-        document.getElementById('postImgConceptStyle').value = c.style || 'none';
-        document.getElementById('postImgConceptSize').value = c.size || 'wide';
+    errEl.style.display = 'none';
+    if (hideSection) hideSection.style.display = 'none';
+    genLoader.style.display = 'flex';
 
-        runPostImgGeneration('postImgConceptsList');
-    }
+    /* При ошибке возвращаем панель с кнопками — шаблоны и «Подобрать концепцию» */
+    function fail(msg) { showError(errEl, msg, document.getElementById('postImgConceptsSection'), genLoader); }
+    var fd = new FormData(form);
+    Press.fetchJSON('/api/tasks', { method: 'POST', body: fd })
+        .then(function(data) {
+            if (!data.task_id) { fail(data.error || 'Не удалось начать генерацию. Повторите.'); return; }
+            Press.pollTask(data.task_id, {
+                done: function () {
+                    genLoader.style.display = 'none';
+                    Press.toast('Картинка готова', 'success', 'Обновляю пост…');
+                    setTimeout(function () { location.reload(); }, 900);
+                },
+                fail: fail
+            });
+        })
+        .catch(function(err) { if (err.message !== Press.SESSION) fail(err.message); });
+}
 
-    function runPostImgGeneration(hideSectionId) {
-        var form = document.getElementById('postImgForm');
-        var hideSection = document.getElementById(hideSectionId);
-        var genLoader = document.getElementById('postImgGenLoader');
+function resetConcepts() {
+    document.getElementById('postImgResult').style.display = 'none';
+    document.getElementById('postImgConceptsList').style.display = 'none';
+    document.getElementById('postImgConceptsSection').style.display = '';
+    document.getElementById('postImgError').style.display = 'none';
+    document.getElementById('postImgGenLoader').style.display = 'none';
+    document.getElementById('postImgAnalyzeLoader').style.display = 'none';
+}
 
-        if (hideSection) hideSection.style.display = 'none';
-        genLoader.style.display = 'flex';
-
-        var fd = new FormData(form);
-        fetch('/api/tasks', { method: 'POST', body: fd })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.error) { showError(document.getElementById('postImgError'), data.error, hideSection, genLoader); return; }
-                pollGenerate(data.task_id);
-            })
-            .catch(function(err) { showError(document.getElementById('postImgError'), 'Ошибка сети: ' + err.message, hideSection, genLoader); });
-    }
-
-    function pollGenerate(taskId) {
-        var genLoader = document.getElementById('postImgGenLoader');
-        var errEl = document.getElementById('postImgError');
-
-        fetch('/api/tasks/' + taskId)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.status === 'running' || data.status === 'pending') {
-                    setTimeout(function() { pollGenerate(taskId); }, 1500);
-                    return;
-                }
-                genLoader.style.display = 'none';
-                if (data.status === 'error') {
-                    showError(errEl, data.error, document.getElementById('postImgConceptsSection'), null);
-                    return;
-                }
-                if (data.status === 'done' && data.result) {
-                    var html = '<div class="media-grid"><div class="media-card">' +
-                        '<a href="/media/' + data.result.filename + '" class="media-link" target="_blank">' +
-                        '<img src="/media/' + data.result.filename + '" class="media-thumb" alt=""></a>' +
-                        '<div class="media-body"><span class="form-hint">generated · только что</span></div></div></div>' +
-                        '<p style="margin-top:10px;"><button type="button" class="copy-btn" onclick="resetConcepts()">← Ещё вариант</button> ' +
-                        '<a href="/images" class="copy-btn">В библиотеку →</a></p>';
-                    document.getElementById('postImgResult').innerHTML = html;
-                    document.getElementById('postImgResult').style.display = 'block';
-                }
-            })
-            .catch(function(err) { showError(errEl, 'Ошибка сети: ' + err.message, document.getElementById('postImgConceptsSection'), null); });
-    }
-
-    function resetConcepts() {
-        document.getElementById('postImgResult').style.display = 'none';
-        document.getElementById('postImgConceptsList').style.display = 'none';
-        document.getElementById('postImgConceptsSection').style.display = '';
-        document.getElementById('postImgError').style.display = 'none';
-        document.getElementById('postImgGenLoader').style.display = 'none';
-        document.getElementById('postImgAnalyzeLoader').style.display = 'none';
-    }
-
-    function showError(el, msg, showSection, hideLoader) {
-        if (hideLoader) hideLoader.style.display = 'none';
-        if (showSection) showSection.style.display = '';
-        el.textContent = msg;
-        el.style.display = 'block';
-    }
-
-    function escH(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-    </script>
-</div>
-
-<div class="post-actions">
-    <a class="copy-btn" href="/posts/{{ post.id }}/publish">📤 Опубликовать</a>
-    <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Полное редактирование</a>
-    <form method="post" action="/posts/{{ post.id }}/delete" class="inline-form"
-          onsubmit="return confirm('Удалить этот пост? Действие необратимо.');">
-        <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
-    </form>
-</div>
-<p><a href="/history">← Назад к постам</a></p>
+function showError(el, msg, showSection, hideLoader) {
+    if (hideLoader) hideLoader.style.display = 'none';
+    if (showSection) showSection.style.display = '';
+    el.textContent = Press.humanError(msg); el.title = msg || '';
+    el.style.display = 'flex';
+}
+</script>
 {% endblock %}

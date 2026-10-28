@@ -1,24 +1,30 @@
-﻿{% extends "base.html" %}
-{% block title %}Опрос медиа-образа — Личный кабинет{% endblock %}
+{% extends "base.html" %}
+{% block title %}Медиа-образ{% endblock %}
 {% block content %}
-<h1>Опрос для создания медиа-образа</h1>
-<p class="form-hint">Заполните поля по шагам. На последнем шаге можно сохранить и сгенерировать документ стратегии.</p>
+<div class="ps-main-head">
+  <div>
+    <a href="/surveys" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">Медиа-образы</span></a>
+    <h1 class="ps-h1">Новый медиа-образ</h1>
+    <p class="ps-lead">12 коротких шагов. На последнем — сохранить образ и получить документ стратегии.</p>
+  </div>
+</div>
+
+<div class="ps-split app-survey-layout" style="--ps-aside: 340px">
 
 <!-- === АНАЛИЗ ПРОФИЛЯ СОЦСЕТИ === -->
-<div class="card" id="socialAnalyzer">
-  <h2 style="margin-top:0">🔍 Автозаполнение из профиля соцсети</h2>
-  <p class="form-hint">Вставьте ссылку на профиль или канал — ИИ проанализирует посты и заполнит поля медиа-образа. Поддерживается Telegram (автоматически), VK, Tenchat, Instagram (вручную).</p>
+<aside class="ps-panel app-survey-aside" id="socialAnalyzer">
+  <h2 class="ps-h2">Автозаполнение</h2>
+  <p class="form-hint">Вставьте ссылку на канал — ИИ прочитает последние посты и заполнит поля. Telegram — автоматически, для VK, TenChat и Instagram вставьте тексты постов.</p>
 
   <div id="socialTaskError" class="task-error"></div>
   <div id="socialTaskLoader" class="task-loader" style="display:none; padding:15px">
-    <div class="spinner"></div>
-    <div class="task-loader-text">Анализирую посты...</div>
+    <div class="ps-thinking" role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Анализирую посты…</span></div>
     <div class="task-loader-sub">Это может занять 20–60 секунд</div>
   </div>
   <div id="socialTaskResult" class="task-result" style="display:none"></div>
 
   <div id="socialForm">
-    <label>Ссылка на профиль/канал
+    <label>Ссылка на канал или профиль
       <input type="url" id="socialUrl" placeholder="https://t.me/channel, https://vk.com/username, https://tenchat.ru/username">
     </label>
 
@@ -29,9 +35,9 @@
       <p class="form-hint" id="manualHint"></p>
     </div>
 
-    <button type="button" class="copy-btn" onclick="startSocialAnalysis()" id="socialAnalyzeBtn">🔍 Анализировать профиль</button>
+    <button type="button" class="ps-btn ps-btn--secondary ps-btn--block" onclick="startSocialAnalysis()" id="socialAnalyzeBtn">Проанализировать</button>
   </div>
-</div>
+</aside>
 
 <script>
 document.getElementById('socialUrl').addEventListener('input', function() {
@@ -41,7 +47,7 @@ document.getElementById('socialUrl').addEventListener('input', function() {
   var hint = document.getElementById('manualHint');
   if (url && !isTG) {
     section.style.display = '';
-    hint.textContent = 'Для VK, Tenchat и других платформ: откройте профиль, скопируйте 3-10 постов и вставьте сюда.';
+    hint.textContent = 'Для VK, TenChat и других платформ: откройте профиль, скопируйте 3–10 постов и вставьте сюда.';
   } else {
     section.style.display = 'none';
   }
@@ -49,7 +55,7 @@ document.getElementById('socialUrl').addEventListener('input', function() {
 
 function startSocialAnalysis() {
   var url = document.getElementById('socialUrl').value.trim();
-  if (!url) { alert('Вставьте ссылку на профиль'); return; }
+  if (!url) { Press.toast('Вставьте ссылку на канал или профиль', 'warning', 'Например: https://t.me/имя_канала'); document.getElementById('socialUrl').focus(); return; }
   var manualPosts = document.getElementById('manualPosts') ? document.getElementById('manualPosts').value : '';
 
   var fd = new FormData();
@@ -62,44 +68,44 @@ function startSocialAnalysis() {
   document.getElementById('socialTaskError').style.display = 'none';
   document.getElementById('socialTaskResult').style.display = 'none';
 
-  fetch('/api/tasks', {method: 'POST', body: fd})
-    .then(function(r) { return r.json(); })
+  function fail(msg) {
+    document.getElementById('socialTaskLoader').style.display = 'none';
+    var err = document.getElementById('socialTaskError');
+    err.textContent = Press.humanError(msg);
+    err.style.display = 'flex';
+    document.getElementById('socialForm').style.display = '';
+  }
+  Press.fetchJSON('/api/tasks', {method: 'POST', body: fd})
     .then(function(data) {
-      var taskId = data.task_id;
-      var poll = setInterval(function() {
-        fetch('/api/tasks/' + taskId)
-          .then(function(r) { return r.json(); })
-          .then(function(t) {
-            if (t.status === 'done') {
-              clearInterval(poll);
-              document.getElementById('socialTaskLoader').style.display = 'none';
-              onSocialAnalysisDone(t.result);
-            } else if (t.status === 'error') {
-              clearInterval(poll);
-              document.getElementById('socialTaskLoader').style.display = 'none';
-              document.getElementById('socialTaskError').textContent = t.error || 'Ошибка анализа';
-              document.getElementById('socialTaskError').style.display = 'block';
-              document.getElementById('socialForm').style.display = '';
-            }
-          });
-      }, 1500);
+      if (!data.task_id) { fail(data.error || 'Не удалось запустить анализ. Повторите через минуту.'); return; }
+      Press.pollTask(data.task_id, {
+        done: function (result) {
+          document.getElementById('socialTaskLoader').style.display = 'none';
+          onSocialAnalysisDone(result || {});
+        },
+        fail: fail
+      });
     })
-    .catch(function(e) {
-      document.getElementById('socialTaskLoader').style.display = 'none';
-      document.getElementById('socialTaskError').textContent = 'Ошибка сети: ' + e;
-      document.getElementById('socialTaskError').style.display = 'block';
-      document.getElementById('socialForm').style.display = '';
-    });
+    .catch(function(e) { fail(e.message); });
 }
 
 function onSocialAnalysisDone(result) {
   var info = result.platform_info || {};
   var count = result.posts_count || 0;
-  var html = '<div class="card"><p>✅ Проанализировано <strong>' + count + ' постов</strong> из ' + (info.platform || 'профиля') + ' (@' + (info.channel || '') + ')</p>';
-  html += '<button type="button" class="copy-btn" onclick="applySocialData()">✅ Применить к медиа-образу</button>';
-  html += ' <button type="button" class="button-link" onclick="resetSocialForm()">↩ Отмена</button></div>';
-  document.getElementById('socialTaskResult').innerHTML = html;
-  document.getElementById('socialTaskResult').style.display = '';
+  /* Собираем через DOM: название канала и платформа приходят из введённой ссылки — в HTML их не вставляем */
+  var box = document.getElementById('socialTaskResult');
+  box.innerHTML = '';
+  var wrap = document.createElement('div'); wrap.className = 'app-stack';
+  var p = document.createElement('p'); p.className = 'app-muted'; p.style.margin = '0';
+  var channel = info.channel && !/^https?:/i.test(info.channel) ? ' (@' + info.channel + ')' : '';
+  p.textContent = 'Прочитал ' + count + ' ' + Press.plural(count, ['пост', 'поста', 'постов']) + ' из ' + (info.platform || 'профиля') + channel + '.';
+  var apply = document.createElement('button'); apply.type = 'button'; apply.className = 'ps-btn ps-btn--primary ps-btn--block';
+  apply.textContent = 'Заполнить анкету'; apply.addEventListener('click', applySocialData);
+  var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ps-btn ps-btn--quiet ps-btn--sm';
+  cancel.textContent = 'Отмена'; cancel.addEventListener('click', resetSocialForm);
+  wrap.appendChild(p); wrap.appendChild(apply); wrap.appendChild(cancel);
+  box.appendChild(wrap);
+  box.style.display = '';
   window._socialData = result;
 }
 
@@ -126,10 +132,11 @@ function applySocialData() {
   setVal('prompt_directions', d.prompt_directions);
   setVal('prompt_structure', d.prompt_structure);
   setVal('prompt_formats', d.prompt_formats);
-  // Сворачиваем анализатор
+  // Сворачиваем анализатор и переходим к шагу 1
   document.getElementById('socialAnalyzer').style.display = 'none';
-  // Переходим к шагу 1
   showStep(1);
+  var filled = document.querySelectorAll('.ai-filled-badge').length;
+  if (filled) Press.toast('Заполнил ' + filled + ' ' + Press.plural(filled, ['поле', 'поля', 'полей']), 'ai', 'Проверьте их — они помечены «Сгенерирован ИИ».');
 }
 
 function setVal(name, value) {
@@ -138,14 +145,22 @@ function setVal(name, value) {
   if (Array.isArray(value)) {
     value = value.join('\n');
   }
-  var el = document.querySelector('[name="' + name + '"]');
-  if (el) {
-    el.value = value;
-    el.style.borderColor = 'var(--accent)';
-    setTimeout(function() { el.style.borderColor = ''; }, 2000);
+  /* Пишем в поле активного типа бренда (у неактивных блоков поля выключены) */
+  var el = document.querySelector('[name="' + name + '"]:not(:disabled)');
+  if (!el) return;
+  el.value = value;
+  var label = el.closest('label');
+  if (label && !label.querySelector('.ai-filled-badge')) {
+    var badge = document.createElement('span');
+    badge.className = 'ps-badge ps-badge--ai ai-filled-badge';
+    badge.innerHTML = document.getElementById('tpl-ai-badge').innerHTML;
+    label.insertBefore(badge, el);
+    /* Бейдж снимается, когда человек сам правит поле */
+    el.addEventListener('input', function () { badge.remove(); }, { once: true });
   }
 }
 </script>
+<template id="tpl-ai-badge">{{ ui.icon('sparkle', 14) }}<span>Сгенерирован ИИ</span></template>
 <!-- === КОНЕЦ АНАЛИЗАТОРА === -->
 
 <div class="survey-wizard">
@@ -159,7 +174,7 @@ function setVal(name, value) {
 
     <!-- Шаг 1: Основная информация -->
     <div class="survey-step" data-step="1">
-      <h2>Шаг 1 — Основная информация</h2>
+      <h2 class="ps-stepper-title">Основная информация</h2>
       <div class="form">
         <label>Тип медиа-образа
           <select name="brand_type" id="brandType" onchange="toggleBrandType()">
@@ -203,7 +218,7 @@ function setVal(name, value) {
 
     <!-- Шаг 2: Цели -->
     <div class="survey-step" data-step="2" hidden>
-      <h2>Шаг 2 — Цели на 12 месяцев</h2>
+      <h2 class="ps-stepper-title">Цели на 12 месяцев</h2>
       <div class="form">
         <label>Целевое число подписчиков <input type="number" name="goal_audience_number" placeholder="10000"></label>
         <label>Основная платформа <input type="text" name="goal_audience_platform" placeholder="Напр. Telegram-канал"></label>
@@ -218,7 +233,7 @@ function setVal(name, value) {
 
     <!-- Шаг 3: Позиционирование -->
     <div class="survey-step" data-step="3" hidden>
-      <h2>Шаг 3 — Позиционирование и УТП</h2>
+      <h2 class="ps-stepper-title">Позиционирование и УТП</h2>
       <div class="form">
         <label>Сущность бренда (одной строкой) <input type="text" name="brand_essence" placeholder="Напр. Цифровой архитектор, строящий IT-устойчивость бизнеса"></label>
 
@@ -252,7 +267,7 @@ function setVal(name, value) {
 
     <!-- Шаг 4: Аудитории и каналы -->
     <div class="survey-step" data-step="4" hidden>
-      <h2>Шаг 4 — Аудитории и каналы</h2>
+      <h2 class="ps-stepper-title">Аудитории и каналы</h2>
       <div class="form">
         <label>Идеальные подписчики / клиенты <span class="form-hint">По строкам</span>
           <textarea name="ideal_audiences" rows="5" placeholder="Владельцы МСП...&#10;IT-специалисты...&#10;Активная молодёжь..."></textarea>
@@ -263,14 +278,14 @@ function setVal(name, value) {
             <thead><tr><th>Платформа</th><th>Тип</th><th>Частота</th><th>Описание</th><th></th></tr></thead>
             <tbody id="channelsBody"></tbody>
           </table>
-          <button type="button" class="copy-btn" onclick="addChannel()">+ Добавить канал</button>
+          <button type="button" class="copy-btn" onclick="addChannel()">Добавить канал</button>
         </div>
       </div>
     </div>
 
     <!-- Шаг 5: Визуальная идентичность -->
     <div class="survey-step" data-step="5" hidden>
-      <h2>Шаг 5 — Визуальная идентичность</h2>
+      <h2 class="ps-stepper-title">Визуальная идентичность</h2>
       <div class="form">
         <label>Концепция <input type="text" name="visual_concept" placeholder="Напр. Цифровой архитектор"></label>
         <h3>Цветовая палитра</h3>
@@ -290,7 +305,7 @@ function setVal(name, value) {
 
     <!-- Шаг 6: Tone of Voice -->
     <div class="survey-step" data-step="6" hidden>
-      <h2>Шаг 6 — Tone of Voice</h2>
+      <h2 class="ps-stepper-title">Tone of Voice</h2>
       <div class="form">
         <label>Описание тона <input type="text" name="tov_description" placeholder="Напр. Стратег-прагматик с душой"></label>
         <label>Референсы / вдохновители <textarea name="tov_references" rows="3" placeholder="Напр. Уверенность Лаврова, глубина Гео, яркость Минаева..."></textarea></label>
@@ -302,7 +317,7 @@ function setVal(name, value) {
 
     <!-- Шаг 7: Контент-стратегия -->
     <div class="survey-step" data-step="7" hidden>
-      <h2>Шаг 7 — Контент-стратегия: Три столпа</h2>
+      <h2 class="ps-stepper-title">Контент-стратегия: Три столпа</h2>
       <div class="form">
         <!-- Личный бренд -->
         <div class="brand-fields-personal">
@@ -370,7 +385,7 @@ function setVal(name, value) {
 
     <!-- Шаг 8: Воронка и продукты -->
     <div class="survey-step" data-step="8" hidden>
-      <h2>Шаг 8 — Воронка и продуктовый ряд</h2>
+      <h2 class="ps-stepper-title">Воронка и продуктовый ряд</h2>
       <div class="form">
         <h3>Воронка вовлечения</h3>
         <div id="funnelContainer">
@@ -387,7 +402,7 @@ function setVal(name, value) {
 
     <!-- Шаг 9: Метрики -->
     <div class="survey-step" data-step="9" hidden>
-      <h2>Шаг 9 — Метрики</h2>
+      <h2 class="ps-stepper-title">Метрики</h2>
       <div class="form">
         <label>Количественные метрики <span class="form-hint">По строкам, формат: Название | Целевое значение | Измерение</span>
           <textarea name="metrics_quantitative" rows="5" placeholder="Подписчики в Telegram | 10000 | Статистика канала&#10;Ежемесячный охват | 250000 | Аналитика соцсетей"></textarea>
@@ -403,7 +418,7 @@ function setVal(name, value) {
 
     <!-- Шаг 10: Риски и рекомендации -->
     <div class="survey-step" data-step="10" hidden>
-      <h2>Шаг 10 — Риски и рекомендации</h2>
+      <h2 class="ps-stepper-title">Риски и рекомендации</h2>
       <div class="form">
         <label>Потенциальные риски <span class="form-hint">По строкам, формат: Риск | Решение</span>
           <textarea name="risks" rows="5" placeholder="Выгорание от ежедневного контента | Заранее создать банк контента...&#10;Конфликт образов | Связать через общую миссию..."></textarea>
@@ -416,7 +431,7 @@ function setVal(name, value) {
 
     <!-- Шаг 11: Архетипы -->
     <div class="survey-step" data-step="11" hidden>
-      <h2>Шаг 11 — Архетипический образ</h2>
+      <h2 class="ps-stepper-title">Архетипический образ</h2>
       <div class="form">
         <h3>Ключевой архетип</h3>
         <label>Название <input type="text" name="archetype_key_name" placeholder="Напр. Ведущий-Герой"></label>
@@ -437,7 +452,7 @@ function setVal(name, value) {
 
     <!-- Шаг 12: Промпт -->
     <div class="survey-step" data-step="12" hidden>
-      <h2>Шаг 12 — Промпт для генерации контента</h2>
+      <h2 class="ps-stepper-title">Как писать ваши посты</h2>
       <div class="form">
         <div class="brand-fields-personal">
           <label>Контекст и личность <textarea name="prompt_context" rows="5" placeholder="Кто я, мой бренд, мои роли..."></textarea></label>
@@ -460,13 +475,14 @@ function setVal(name, value) {
 
     <!-- Навигация -->
     <div class="survey-nav">
-      <button type="button" id="btnPrev" onclick="prevStep()" hidden>← Назад</button>
+      <button type="button" id="btnPrev" onclick="prevStep()" hidden>Назад</button>
       <span id="stepCounter"></span>
-      <button type="button" id="btnNext" onclick="nextStep()">Далее →</button>
-      <button type="submit" id="btnSubmit" hidden>💾 Сохранить и сгенерировать документ</button>
+      <button type="button" id="btnNext" onclick="nextStep()">Далее</button>
+      <button type="submit" id="btnSubmit" hidden>Сохранить образ</button>
     </div>
 
   </form>
+</div>
 </div>
 
 <script>
@@ -488,18 +504,18 @@ function toggleBrandType() {
   var isOrg = (type === "organization");
   var isCommunity = (type === "community");
 
-  document.querySelectorAll(".brand-fields-personal").forEach(function(el) {
-    el.style.display = isPersonal ? "" : "none";
-  });
-  document.querySelectorAll(".brand-fields-organization").forEach(function(el) {
-    el.style.display = isOrg ? "" : "none";
-  });
-  document.querySelectorAll(".brand-fields-community").forEach(function(el) {
-    el.style.display = isCommunity ? "" : "none";
-  });
-  document.getElementById("fieldsPersonal").style.display = isPersonal ? "" : "none";
-  document.getElementById("fieldsOrganization").style.display = isOrg ? "" : "none";
-  document.getElementById("fieldsCommunity").style.display = isCommunity ? "" : "none";
+  /* У каждого типа свои одноимённые поля. Неактивные блоки не только прячем, но и выключаем:
+     выключенные поля не попадают в данные формы — сохраняется ровно то, что видит человек. */
+  function setBlock(el, on) {
+    el.style.display = on ? "" : "none";
+    el.querySelectorAll("input, textarea, select").forEach(function (f) { f.disabled = !on; });
+  }
+  document.querySelectorAll(".brand-fields-personal").forEach(function(el) { setBlock(el, isPersonal); });
+  document.querySelectorAll(".brand-fields-organization").forEach(function(el) { setBlock(el, isOrg); });
+  document.querySelectorAll(".brand-fields-community").forEach(function(el) { setBlock(el, isCommunity); });
+  setBlock(document.getElementById("fieldsPersonal"), isPersonal);
+  setBlock(document.getElementById("fieldsOrganization"), isOrg);
+  setBlock(document.getElementById("fieldsCommunity"), isCommunity);
 
   updatePillarHints(type);
 }
@@ -509,17 +525,17 @@ function updatePillarHints(type) {
   var p2 = document.querySelector(".pillar2-formats-hint");
   var p3 = document.querySelector(".pillar3-formats-hint");
   if (type === "community") {
-    if (p1) p1.placeholder = "Миссия сообщества...\\nИстория создания...\\nЦенности и принципы...";
-    if (p2) p2.placeholder = "Мероприятия и активности...\\nОбзоры встреч...\\nИтоги и анонсы...";
-    if (p3) p3.placeholder = "Истории участников...\\nОтзывы и кейсы...\\nПриглашения к участию...";
+    if (p1) p1.placeholder = "Миссия сообщества...\nИстория создания...\nЦенности и принципы...";
+    if (p2) p2.placeholder = "Мероприятия и активности...\nОбзоры встреч...\nИтоги и анонсы...";
+    if (p3) p3.placeholder = "Истории участников...\nОтзывы и кейсы...\nПриглашения к участию...";
   } else if (type === "organization") {
-    if (p1) p1.placeholder = "Обзор продукта...\\nКейсы клиентов...\\nНовинки компании...";
-    if (p2) p2.placeholder = "Экспертные статьи...\\nАналитика рынка...\\nРазборы технологий...";
-    if (p3) p3.placeholder = "Опросы...\\nРозыгрыши...\\nОтзывы клиентов...";
+    if (p1) p1.placeholder = "Обзор продукта...\nКейсы клиентов...\nНовинки компании...";
+    if (p2) p2.placeholder = "Экспертные статьи...\nАналитика рынка...\nРазборы технологий...";
+    if (p3) p3.placeholder = "Опросы...\nРозыгрыши...\nОтзывы клиентов...";
   } else {
-    if (p1) p1.placeholder = "История пути...\\nЗакулисье...\\nОбщественная деятельность...";
-    if (p2) p2.placeholder = "Экспертные разборы...\\nПрактические советы...\\nКейсы...";
-    if (p3) p3.placeholder = "Опросы...\\nПрямые эфиры...\\nИнтерактивные челленджи...";
+    if (p1) p1.placeholder = "История пути...\nЗакулисье...\nОбщественная деятельность...";
+    if (p2) p2.placeholder = "Экспертные разборы...\nПрактические советы...\nКейсы...";
+    if (p3) p3.placeholder = "Опросы...\nПрямые эфиры...\nИнтерактивные челленджи...";
   }
 }
 
@@ -544,17 +560,21 @@ function addChannel(platform = "", type = "", frequency = "", description = "") 
   const tbody = document.getElementById("channelsBody");
   const tr = document.createElement("tr");
   tr.innerHTML = `
-    <td><input type="text" name="channels_${channelIdx}_platform" value="${platform}" placeholder="Напр. Telegram-канал"></td>
-    <td><input type="text" name="channels_${channelIdx}_type" value="${type}" placeholder="Основной / доп."></td>
-    <td><input type="text" name="channels_${channelIdx}_frequency" value="${frequency}" placeholder="Напр. 1 пост в день"></td>
-    <td><input type="text" name="channels_${channelIdx}_description" value="${description}" placeholder="Описание"></td>
-    <td><button type="button" class="button-link button-link-danger" onclick="this.closest('tr').remove()">✕</button></td>`;
+    <td><input type="text" name="channels_${channelIdx}_platform" placeholder="Напр. Telegram-канал" aria-label="Платформа"></td>
+    <td><input type="text" name="channels_${channelIdx}_type" placeholder="Основной / доп." aria-label="Тип"></td>
+    <td><input type="text" name="channels_${channelIdx}_frequency" placeholder="Напр. 1 пост в день" aria-label="Частота"></td>
+    <td><input type="text" name="channels_${channelIdx}_description" placeholder="Описание" aria-label="Описание"></td>
+    <td><button type="button" class="ps-iconbtn" aria-label="Удалить строку">${document.getElementById('tpl-icon-close') ? document.getElementById('tpl-icon-close').innerHTML : '×'}</button></td>`;
+  var vals = [platform, type, frequency, description];
+  tr.querySelectorAll('input').forEach(function (inp, k) { inp.value = vals[k] || ''; });
+  tr.querySelector('button').addEventListener('click', function () { tr.remove(); });
   tbody.appendChild(tr);
   channelIdx++;
 }
 
 // --- Навигация ---
 function showStep(n) {
+  currentStep = n;
   document.querySelectorAll(".survey-step").forEach(el => el.hidden = true);
   const el = document.querySelector(`.survey-step[data-step="${n}"]`);
   if (el) el.hidden = false;
@@ -569,21 +589,31 @@ function showStep(n) {
   const ind = document.getElementById("stepsIndicator");
   ind.innerHTML = "";
   for (let i = 1; i <= TOTAL_STEPS; i++) {
-    const dot = document.createElement("span");
+    const dot = document.createElement("button");
+    dot.type = "button";
     dot.className = "step-dot" + (i === n ? " active" : "") + (i < n ? " done" : "");
     dot.textContent = i;
-    dot.onclick = () => showStep(i);
+    dot.setAttribute("aria-label", "Шаг " + i + " из " + TOTAL_STEPS);
+    if (i === n) dot.setAttribute("aria-current", "step");
+    dot.addEventListener("click", () => showStep(i));
     ind.appendChild(dot);
   }
   window.scrollTo(0, 0);
 }
 
 function nextStep() {
-  if (currentStep < TOTAL_STEPS) { currentStep++; showStep(currentStep); }
+  if (currentStep < TOTAL_STEPS) showStep(currentStep + 1);
 }
 function prevStep() {
-  if (currentStep > 1) { currentStep--; showStep(currentStep); }
+  if (currentStep > 1) showStep(currentStep - 1);
 }
+
+/* Enter в однострочном поле — следующий шаг, а не сохранение. В многострочном — новая строка, как обычно. */
+document.getElementById("surveyForm").addEventListener("keydown", function (e) {
+  if (e.key !== "Enter" || e.target.tagName !== "INPUT" || e.isComposing) return;
+  e.preventDefault();
+  if (currentStep < TOTAL_STEPS) nextStep();
+});
 
 // --- Сборка данных ---
 function collectData() {
@@ -622,37 +652,40 @@ function collectData() {
 // --- Отправка ---
 document.getElementById("surveyForm").addEventListener("submit", async function(e) {
   e.preventDefault();
+  /* Сохраняем только с последнего шага — неявная отправка формы раньше времени не создаёт пустой образ */
+  if (currentStep !== TOTAL_STEPS) { nextStep(); return; }
   const data = collectData();
   var brandType = data.brand_type || "personal";
-  var title = (brandType === "organization")
-    ? (data.org_name || "Без названия")
-    : (data.client_name || "Без названия");
+  var title = (brandType === "organization" || brandType === "community")
+    ? ((data.org_name || "").trim() || "Без названия")
+    : ((data.client_name || "").trim() || "Без названия");
   const btn = document.getElementById("btnSubmit");
   btn.disabled = true;
-  btn.textContent = "⏳ Генерация...";
+  btn.textContent = "Сохраняю образ…";
   try {
     const resp = await fetch("/survey/submit", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({title: title, data: data}),
     });
-    if (resp.ok) {
+    if (resp.ok && !resp.redirected) {
       const result = await resp.json();
       window.location.href = "/surveys/" + result.id;
     } else {
-      alert("Ошибка при сохранении: " + resp.status);
+      Press.toast("Не удалось сохранить медиа-образ", "danger", resp.redirected ? "Сессия истекла — войдите заново, ответы на этой странице сохранятся." : "Повторите через минуту. Ответы на этой странице сохранятся.");
       btn.disabled = false;
-      btn.textContent = "💾 Сохранить и сгенерировать документ";
+      btn.textContent = "Сохранить образ";
     }
   } catch (err) {
-    alert("Ошибка сети: " + err);
+    Press.toast("Нет связи с сервером", "danger", "Проверьте интернет и нажмите «Сохранить образ» ещё раз.");
     btn.disabled = false;
-    btn.textContent = "💾 Сохранить и сгенерировать документ";
+    btn.textContent = "Сохранить образ";
   }
 });
 
 // --- Старт ---
 initFunnel();
+toggleBrandType();
 addChannel("Telegram-канал", "Основной", "1 пост в день", "Глубокий контент, экспертиза");
 addChannel("ВКвидео / Рутуб", "Доп.", "1 видео в неделю", "Длинные разборы, интервью");
 showStep(1);

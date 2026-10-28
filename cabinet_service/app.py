@@ -2,8 +2,8 @@ from pathlib import Path
 import json
 import os
 import re
-import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import bcrypt
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
@@ -13,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from ai_core.image_generator import IMAGE_SIZES, IMAGE_TEMPLATES, STYLE_PRESETS, ImageGenerator, detect_ext, get_sizes_for_model
+from ai_core.net_safety import public_url_error
 from ai_core.neural_network import ContentGenerator
 from ai_core.social_analyzer import analyze_posts_with_ai, detect_platform, fetch_telegram_posts
 from ai_core.telegram_publisher import (
@@ -25,7 +26,9 @@ from cabinet_service.brand_doc_generator import generate_brand_docx
 from config import SECRET_KEY
 from database import (
     add_post_revision,
+    count_user_tasks,
     create_task,
+    fail_unfinished_tasks,
     create_web_user,
     delete_brand_survey,
     delete_channel,
@@ -79,13 +82,164 @@ MEDIA_DIR = BASE_DIR / "media"
 MEDIA_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="Личный кабинет")
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+# На сервере с https задайте SESSION_COOKIE_SECURE=1 в .env — cookie сессии не уйдёт по http
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax",
+                   https_only=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
+                   max_age=14 * 24 * 3600)
+
+_UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    # CSRF: изменяющий запрос браузера должен прийти с нашего же сайта. Браузер всегда шлёт Origin
+    # (или хотя бы Referer) у POST-форм и fetch, подделать их со стороннего сайта нельзя.
+    if request.method in _UNSAFE_METHODS:
+        source = request.headers.get("origin") or request.headers.get("referer")
+        if source:
+            from urllib.parse import urlparse
+            # Origin: null шлют песочницы iframe и file:// — тоже чужой источник
+            if source == "null" or urlparse(source).netloc != request.headers.get("host", ""):
+                return JSONResponse({"error": "Запрос отклонён: он пришёл с другого сайта."}, status_code=403)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if request.headers.get("x-forwarded-proto") == "https" or request.url.scheme == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+
+def plural(n, forms):
+    """Склонение по числу: plural(3, ['день', 'дня', 'дней']) -> 'дня'."""
+    n = abs(int(n or 0))
+    a, b = n % 100, n % 10
+    if 10 < a < 20:
+        return forms[2]
+    if 1 < b < 5:
+        return forms[1]
+    if b == 1:
+        return forms[0]
+    return forms[2]
+
+
+_PATRONYMIC_ENDINGS = ("вич", "вна", "чна", "ична", "инична", "оглы", "кызы")
+_SURNAME_ENDINGS = ("ов", "ова", "ев", "ева", "ёв", "ёва", "ин", "ина", "ын", "ына", "ский", "ская", "цкий", "цкая",
+                    "ской", "енко", "ук", "юк", "чук", "ых", "их", "ко")
+# Частые имена: окончания вроде «-ина» есть и у имён (Ирина), и у фамилий (Котина), поэтому сначала — словарь
+_FIRST_NAMES = set("""
+александр алексей анатолий андрей антон аркадий арсений артём артем артур богдан борис вадим валентин валерий василий
+виктор виталий владимир владислав всеволод вячеслав геннадий георгий герман глеб григорий давид даниил данил денис
+дмитрий евгений егор захар иван игнат игорь илья кирилл константин лев леонид максим марк матвей михаил назар никита
+николай олег павел пётр петр платон роман ростислав руслан савелий семён семен сергей станислав степан тимофей тимур
+фёдор федор филипп эдуард юрий ян ярослав рашид рустам тарас остап богдан мирон
+александра алина алиса алла анастасия ангелина анна антонина арина валентина валерия варвара вера вероника виктория
+галина дарья диана ева евгения екатерина елена елизавета жанна зарина зинаида злата инна ирина карина кира кристина
+ксения лариса лидия лилия любовь людмила маргарита марина мария милана надежда наталья наталия нина оксана олеся ольга
+полина раиса регина светлана софия софья стефания таисия тамара татьяна ульяна элина эльвира юлия яна ярослава
+саша шура лёша леша дима женя ваня вова володя коля костя миша паша петя серёжа сережа слава толя юра
+аня валя варя галя даша катя ксюша лена лиза люба люда маша надя наташа оля поля света соня таня юля
+""".split())
+
+
+def first_name(full_name):
+    """Имя для обращения из поля «Имя»: «Котова Ирина Сергеевна» → «Ирина», «Анна Тестова» → «Анна».
+    В обращении имя стоит в именительном падеже, склонять его не нужно. В поле вписано название
+    организации (есть кавычки) — имени нет, обращение без имени."""
+    raw = str(full_name or "")
+    if any(q in raw for q in "«»\"„“"):
+        return ""
+    words = [w for w in raw.replace(",", " ").split() if w.replace("-", "").isalpha()]
+    if not words:
+        return ""
+    low = [w.lower() for w in words]
+
+    def cap(w):
+        return "-".join(p[:1].upper() + p[1:].lower() for p in w.split("-"))
+    # Слово из словаря имён — оно и есть имя
+    for i, w in enumerate(low):
+        if w in _FIRST_NAMES or w.split("-")[0] in _FIRST_NAMES:
+            return cap(words[i])
+    # Есть отчество — имя стоит перед ним
+    for i, w in enumerate(low):
+        if i > 0 and w.endswith(_PATRONYMIC_ENDINGS):
+            return cap(words[i - 1])
+    # Первое слово похоже на фамилию, второе — нет: «Котова Ирина»
+    if len(words) >= 2 and low[0].endswith(_SURNAME_ENDINGS) and not low[1].endswith(_SURNAME_ENDINGS):
+        return cap(words[1])
+    return cap(words[0])
+
+
+def greeting_for_hour(hour=None):
+    """Приветствие по времени суток: утро 5–11, день 11–17, вечер 17–23, ночь 23–5.
+    Без аргумента — по часам сервера; на странице скрипт уточняет по часам пользователя."""
+    if hour is None:
+        from datetime import datetime
+        hour = datetime.now().hour
+    if 5 <= hour < 11:
+        return "Доброе утро"
+    if 11 <= hour < 17:
+        return "Добрый день"
+    if 17 <= hour < 23:
+        return "Добрый вечер"
+    return "Доброй ночи"
+
+
+# SQLite хранит CURRENT_TIMESTAMP в UTC; показываем по Москве (DISPLAY_TZ_OFFSET — смещение в часах)
+DISPLAY_TZ_OFFSET = int(os.getenv("DISPLAY_TZ_OFFSET", "3"))
+
+
+def local_dt(value, fmt="%d.%m.%Y %H:%M"):
+    """«2026-10-28 10:49:12» (UTC) → «28.10.2026 13:49». Непонятное значение возвращается как есть."""
+    from datetime import datetime, timedelta
+    raw = str(value or "")
+    try:
+        dt = datetime.strptime(raw[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return raw
+    return (dt + timedelta(hours=DISPLAY_TZ_OFFSET)).strftime(fmt)
+
+
+templates.env.filters["local_dt"] = local_dt
+templates.env.filters["first_name"] = first_name
+templates.env.globals["greeting_for_hour"] = greeting_for_hour
+
+# Компоненты дизайн-системы (иконки, логотип) доступны во всех шаблонах как ui.*
+templates.env.globals["plural"] = plural
+# Числа с неразрывным пробелом между разрядами: 4096 -> «4 096»
+templates.env.filters["num"] = lambda n: "{:,}".format(int(n or 0)).replace(",", " ")
+templates.env.globals["ui"] = templates.env.get_template("_ui.html").module
+
 content_gen = ContentGenerator()
 image_gen = ImageGenerator()
+
+# Фоновые задачи (генерации через ИИ) — общий пул потоков вместо потока на каждый запрос:
+# сколько бы задач ни пришло, одновременно к провайдеру идут не больше TASK_WORKERS.
+TASK_WORKERS = int(os.getenv("TASK_WORKERS", "4"))
+TASK_ACTIVE_LIMIT = int(os.getenv("TASK_ACTIVE_LIMIT", "2"))     # незавершённых задач на пользователя
+TASK_HOURLY_LIMIT = int(os.getenv("TASK_HOURLY_LIMIT", "60"))    # задач на пользователя в час
+task_pool = ThreadPoolExecutor(max_workers=TASK_WORKERS, thread_name_prefix="task")
+fail_unfinished_tasks()
+
+# Загрузка картинок: только настоящие изображения и не больше 10 МБ
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+
+def is_image(data: bytes) -> bool:
+    """PNG, JPEG, WebP или GIF по сигнатуре файла — расширению и MIME из браузера не доверяем."""
+    return (data[:8] == b"\x89PNG\r\n\x1a\n" or data[:3] == b"\xff\xd8\xff"
+            or (data[:4] == b"RIFF" and data[8:12] == b"WEBP") or data[:4] == b"GIF8")
+
+
+def to_int(value, default=None):
+    """int из поля формы или query; мусор — default, а не 500."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
 
 
 def get_user_content_gen(user: dict) -> ContentGenerator:
@@ -145,6 +299,9 @@ def flash(request: Request, message: str):
 def render(request: Request, template: str, status_code: int = 200, **context):
     context.setdefault("user", None)
     context["flash_message"] = request.session.pop("flash", None)
+    # Активный медиа-образ — для карточки внизу боковой навигации
+    if context["user"] and "active_persona" not in context:
+        context["active_persona"] = get_latest_brand_survey_for_user(context["user"]["id"])
     return templates.TemplateResponse(request, template, context, status_code=status_code)
 
 
@@ -171,6 +328,18 @@ def presentation_tz(request: Request):
     return render(request, "presentation_tz.html")
 
 
+@app.get("/presentation.{ext}")
+def presentation_file(ext: str):
+    # Готовая презентация лежит в корне проекта (её собирает deploy/generate_presentation.py)
+    if ext not in ("pdf", "pptx"):
+        raise HTTPException(status_code=404)
+    path = BASE_DIR.parent / f"ИИ_Пресс-секретарь_презентация.{ext}"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Презентация ещё не собрана")
+    from fastapi.responses import FileResponse
+    return FileResponse(path, filename=path.name)
+
+
 # === РЕГИСТРАЦИЯ ===
 
 @app.get("/register")
@@ -193,6 +362,8 @@ def register_submit(
     errors = []
     if len(password) < 8:
         errors.append("Пароль должен быть не короче 8 символов.")
+    if len(password.encode("utf-8")) > 72:
+        errors.append("Пароль слишком длинный: не больше 72 байт (около 36 русских или 72 латинских символов).")
     if password != password_confirm:
         errors.append("Пароли не совпадают.")
     if "@" not in email or "." not in email.split("@")[-1]:
@@ -210,8 +381,8 @@ def register_submit(
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     user_id = create_web_user(email, password_hash, name, phone)
     request.session["user_id"] = user_id
-    flash(request, "Регистрация завершена! Добро пожаловать.")
-    return RedirectResponse("/dashboard", status_code=303)
+    flash(request, "Регистрация завершена. Начните с медиа-образа — посты пишутся на его основе.")
+    return RedirectResponse("/survey", status_code=303)
 
 
 # === ВХОД / ВЫХОД ===
@@ -230,6 +401,7 @@ def login_submit(request: Request, email: str = Form(...), password: str = Form(
     valid = (
         user is not None
         and user["password_hash"]
+        and len(password.encode("utf-8")) <= 72
         and bcrypt.checkpw(password.encode("utf-8"), user["password_hash"].encode("utf-8"))
     )
     if not valid:
@@ -253,7 +425,19 @@ def logout(request: Request):
 @app.get("/dashboard")
 def dashboard(request: Request, user: dict = Depends(current_user)):
     latest_survey = get_latest_brand_survey_for_user(user["id"])
-    return render(request, "dashboard.html", user=user, latest_survey=latest_survey)
+    recent_posts = get_posts_for_user(user["id"], limit=3)
+    for p in recent_posts:
+        p["images"] = get_post_images(p["id"], user["id"])
+    all_posts = get_posts_for_user(user["id"], limit=10000)
+    counters = {
+        "posts": len(all_posts),
+        "images": len(get_media_for_user(user["id"], limit=10000)),
+        "published": sum(1 for p in all_posts if p.get("published")),
+        "surveys": len(get_brand_surveys_for_user(user["id"])),
+    }
+    return render(request, "dashboard.html", user=user, latest_survey=latest_survey,
+                  active_persona=latest_survey, recent_posts=recent_posts,
+                  counters=counters, platform_label=platform_label)
 
 
 @app.get("/profile/edit")
@@ -321,6 +505,12 @@ def provider_submit(
         errors.append("Укажите API ключ для провайдера изображений или выберите «Использовать глобальные настройки».")
     if not image_use_global and image_provider_type == "custom" and not image_base_url.strip():
         errors.append("Для кастомного image-провайдера укажите Base URL.")
+    # Свой адрес провайдера — только публичный https: сервер отправляет на него запросы и показывает ответ
+    for label, use_global, base in (("текстового", text_use_global, text_base_url), ("image-", image_use_global, image_base_url)):
+        if not use_global and base.strip():
+            url_error = public_url_error(base)
+            if url_error:
+                errors.append(f"Base URL {label}провайдера: {url_error}")
     if not image_preset.get("supports_images", True) and not image_use_global:
         errors.append(f"Провайдер «{image_preset.get('name')}» не поддерживает генерацию изображений. Выберите другой.")
 
@@ -571,12 +761,13 @@ async def post_image_upload(request: Request, post_id: int, user: dict = Depends
         flash(request, "Выберите файлы для загрузки.")
         return RedirectResponse(f"/posts/{post_id}", status_code=303)
 
-    uploaded = 0
+    uploaded = skipped = 0
     for upload in files:
         if not upload or not upload.filename:
             continue
-        raw = await upload.read()
-        if not raw:
+        raw = await upload.read(MAX_IMAGE_BYTES + 1)
+        if not raw or len(raw) > MAX_IMAGE_BYTES or not is_image(raw):
+            skipped += 1
             continue
         ext = detect_ext(raw)
         filename = f"{uuid.uuid4().hex}{ext}"
@@ -584,10 +775,11 @@ async def post_image_upload(request: Request, post_id: int, user: dict = Depends
         save_post_image(post_id, user["id"], filename, source="upload")
         uploaded += 1
 
+    note = f" Пропущено файлов: {skipped} — нужны JPG, PNG, WebP или GIF до 10 МБ." if skipped else ""
     if uploaded:
-        flash(request, f"Загружено изображений: {uploaded}")
+        flash(request, f"Загружено изображений: {uploaded}.{note}")
     else:
-        flash(request, "Не удалось загрузить изображения.")
+        flash(request, "Не удалось загрузить изображения." + note)
     return RedirectResponse(f"/posts/{post_id}", status_code=303)
 
 
@@ -642,8 +834,8 @@ def plan_form(request: Request, user: dict = Depends(current_user)):
 
 
 @app.post("/plan")
-def plan_submit(request: Request, days: int = Form(7), user: dict = Depends(current_user)):
-    days = max(1, min(days, 14))
+def plan_submit(request: Request, days: str = Form("7"), user: dict = Depends(current_user)):
+    days = max(1, min(to_int(days, 7), 14))
     user_gen = get_user_content_gen(user)
     latest = get_latest_brand_survey_for_user(user["id"])
     if latest:
@@ -664,8 +856,8 @@ def plan_status_submit(
     user: dict = Depends(current_user),
 ):
     try:
-        update_plan_status(user["id"], item_id, status)
-        flash(request, "Статус пункта обновлён.")
+        found = update_plan_status(user["id"], item_id, status)
+        flash(request, "Статус пункта обновлён." if found else "Пункт плана не найден.")
     except ValueError:
         flash(request, "Недопустимый статус.")
     return RedirectResponse("/plan", status_code=303)
@@ -673,8 +865,8 @@ def plan_status_submit(
 
 @app.post("/plan/{item_id}/delete")
 def plan_item_delete(request: Request, item_id: int, user: dict = Depends(current_user)):
-    delete_plan_item(user["id"], item_id)
-    flash(request, "Пункт плана удалён.")
+    found = delete_plan_item(user["id"], item_id)
+    flash(request, "Пункт плана удалён." if found else "Пункт плана не найден.")
     return RedirectResponse("/plan", status_code=303)
 
 
@@ -694,7 +886,10 @@ def delete_account_submit(
 ):
     if confirm != "yes":
         return RedirectResponse("/dashboard", status_code=303)
-    delete_user_by_id(user["id"])
+    for filename in delete_user_by_id(user["id"]):
+        fp = MEDIA_DIR / filename
+        if fp.exists():
+            fp.unlink()
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
 
@@ -740,9 +935,9 @@ def image_generate_submit(
     if not prompt:
         return render(
             request, "image_generate.html", status_code=400,
-            user=user, sizes=sizes, styles=STYLE_PRESETS,
+            user=user, sizes=sizes, styles=STYLE_PRESETS, templates=IMAGE_TEMPLATES,
             form={"prompt": prompt, "size": size, "style": style},
-            errors=["Опиши, что нужно нарисовать."],
+            errors=["Опишите, что нужно нарисовать."],
         )
 
     user_img_gen = get_user_image_gen(user)
@@ -752,7 +947,7 @@ def image_generate_submit(
     except Exception as e:
         return render(
             request, "image_generate.html", status_code=502,
-            user=user, sizes=sizes, styles=STYLE_PRESETS,
+            user=user, sizes=sizes, styles=STYLE_PRESETS, templates=IMAGE_TEMPLATES,
             form={"prompt": prompt, "size": size, "style": style},
             errors=[f"Ошибка генерации картинки: {e}"],
         )
@@ -824,10 +1019,10 @@ async def survey_import_submit(request: Request, user: dict = Depends(current_us
             )
         # Поддерживаем два формата: {"data": {...}, "title": "..."} или просто {...}
         if isinstance(data, dict) and "data" in data and isinstance(data["data"], dict):
-            title = (data.get("title") or "Импортированный образ").strip()[:200]
+            title = str(data.get("title") or "Импортированный образ").strip()[:200]
             survey_data = data["data"]
         elif isinstance(data, dict):
-            title = (data.get("client_name") or data.get("title") or "Импортированный образ").strip()[:200]
+            title = str(data.get("client_name") or data.get("title") or "Импортированный образ").strip()[:200]
             survey_data = data
         else:
             return render(
@@ -879,7 +1074,7 @@ async def survey_import_submit(request: Request, user: dict = Depends(current_us
                 errors=["Не удалось разобрать документ. Проверьте, что PiAPI ключ настроен, и попробуйте снова."],
             )
 
-        title = (survey_data.get("client_name") or "Импортированный образ").strip()[:200]
+        title = str(survey_data.get("client_name") or "Импортированный образ").strip()[:200]
         survey_id = save_brand_survey(user["id"], title, survey_data)
         flash(request, f"Медиа-образ «{title}» импортирован из .docx.")
         return RedirectResponse(f"/surveys/{survey_id}", status_code=303)
@@ -892,8 +1087,13 @@ async def survey_import_submit(request: Request, user: dict = Depends(current_us
 
 @app.post("/survey/submit")
 async def survey_submit(request: Request, user: dict = Depends(current_user)):
-    body = await request.json()
-    title = (body.get("title") or "Без названия").strip()[:200]
+    try:
+        body = await request.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("data") or {}, dict):
+        return JSONResponse({"ok": False, "error": "Некорректные данные анкеты."}, status_code=400)
+    title = str(body.get("title") or "Без названия").strip()[:200] or "Без названия"
     data = body.get("data") or {}
     survey_id = save_brand_survey(user["id"], title, data)
     return {"id": survey_id, "ok": True}
@@ -993,9 +1193,37 @@ def channel_add_submit(
             form={"chat_input": chat_input},
         )
 
-    # 4. Сохраняем
-    save_channel(user["id"], chat_id, title, username, chat_type)
-    flash(request, f"Канал «{title}» добавлен.")
+    # 4. Бот общий, поэтому «бот — админ» не доказывает, что канал ваш.
+    # Владелец подтверждает канал кодом в его описании: менять описание могут только админы канала.
+    pending = {"chat_id": chat_id, "title": title, "username": username, "type": chat_type,
+               "code": "press-" + uuid.uuid4().hex[:8]}
+    request.session["channel_verify"] = pending
+    return render(request, "channel_add.html", user=user, verify=pending)
+
+
+@app.post("/channels/verify")
+def channel_verify_submit(request: Request, user: dict = Depends(current_user)):
+    pending = request.session.get("channel_verify")
+    if not pending:
+        flash(request, "Проверка устарела. Добавьте канал ещё раз.")
+        return RedirectResponse("/channels/add", status_code=303)
+
+    info = resolve_chat(str(pending["chat_id"]))
+    if "error" in info:
+        return render(request, "channel_add.html", status_code=400, user=user, verify=pending,
+                      errors=[f"Не удалось проверить канал: {info['error']}"])
+    if pending["code"] not in (info.get("description") or ""):
+        return render(request, "channel_add.html", status_code=400, user=user, verify=pending,
+                      errors=["Код не найден в описании канала. Сохраните описание в Telegram и проверьте ещё раз."])
+    is_admin, admin_error = check_bot_is_admin(pending["chat_id"])
+    if not is_admin:
+        return render(request, "channel_add.html", status_code=400, user=user, verify=pending,
+                      errors=[admin_error or "Бот не админ в этом чате."])
+
+    request.session.pop("channel_verify", None)
+    if not is_channel_already_added(user["id"], pending["chat_id"]):
+        save_channel(user["id"], pending["chat_id"], info["title"], info["username"], info["type"])
+    flash(request, f"Канал «{info['title']}» подключён. Код из описания можно удалить.")
     return RedirectResponse("/channels", status_code=303)
 
 
@@ -1121,12 +1349,7 @@ def _run_post_generation(task_id, user_id, platform, style, wishes, survey_id, p
         gen = ContentGenerator(provider_settings=settings) if settings and settings.get("api_key") else content_gen
         content = gen.generate_post_from_brand_profile(brand_data, platform, style, wishes)
         post_id = save_post_for_user(user_id, platform, content, style, wishes)
-        # Если пост создан из плана — ставим статус «опубликовано»
-        if plan_id:
-            try:
-                update_plan_status(user_id, int(plan_id), "published")
-            except (ValueError, Exception) as e:
-                print(f"⚠️ Не удалось обновить статус плана {plan_id}: {e}")
+        # Пост из плана — пока только черновик: «Опубликовано» пункт получает вручную в плане
         update_task_status(task_id, 'done', result_json=json.dumps({"post_id": post_id, "content": content}))
     except Exception as e:
         update_task_status(task_id, 'error', error=str(e))
@@ -1204,7 +1427,7 @@ def _run_social_analysis(task_id, user_id, url, manual_posts):
 
         if not posts:
             update_task_status(task_id, 'error',
-                error="Не удалось загрузить посты. Для VK и Tenchat вставьте тексты постов вручную (по 2+ постов через пустую строку).")
+                error="Не удалось загрузить посты. Для VK и TenChat вставьте тексты постов вручную (по 2+ постов через пустую строку).")
             return
 
         # AI-анализ
@@ -1320,86 +1543,80 @@ def _run_post_image_generation(task_id, user_id, post_id, template_key=None, cus
         update_task_status(task_id, 'error', error=str(e))
 
 
+TASK_TYPES = {
+    "generate_post", "generate_plan", "generate_image", "generate_post_image", "analyze_post_image",
+    "generate_post_image_with_concept", "analyze_social_profile", "modify_post",
+}
+POST_TASKS = {"generate_post_image", "analyze_post_image", "generate_post_image_with_concept", "modify_post"}
+
+
+def _task_error(message, status_code=400):
+    return JSONResponse({"error": message}, status_code=status_code)
+
+
 @app.post("/api/tasks")
 async def api_start_task(request: Request, user: dict = Depends(current_user)):
     """Запускает фоновую задачу. Возвращает task_id."""
     uid = user["id"]
     form = await request.form()
     task_type_val = form.get("task_type", "")
-    task_id = create_task(uid, task_type_val)
+    if task_type_val not in TASK_TYPES:
+        return _task_error("Неизвестный тип задачи.")
+
+    # Лимиты: каждая задача — платный запрос к ИИ через общий ключ
+    if count_user_tasks(uid, 15, active_only=True) >= TASK_ACTIVE_LIMIT:
+        return _task_error("Дождитесь окончания текущих генераций и повторите.", 429)
+    if count_user_tasks(uid, 60) >= TASK_HOURLY_LIMIT:
+        return _task_error("Достигнут лимит генераций на этот час. Повторите позже.", 429)
+
+    post_id = None
+    if task_type_val in POST_TASKS:
+        post_id = to_int(form.get("post_id"))
+        if not post_id or not get_post_by_id_for_user(post_id, uid):
+            return _task_error("Пост не найден.", 404)
 
     if task_type_val == "generate_post":
-        platform = form.get("platform", "telegram")
-        style = form.get("style", "")
-        wishes = form.get("wishes", "")
-        survey_id = form.get("survey_id", "")
-        plan_id = form.get("plan_id", "") or None
-        t = threading.Thread(target=_run_post_generation, args=(task_id, uid, platform, style, wishes, survey_id, plan_id), daemon=True)
-        t.start()
+        job = (_run_post_generation, form.get("platform", "telegram"), form.get("style", ""),
+               form.get("wishes", ""), to_int(form.get("survey_id")), form.get("plan_id", "") or None)
 
     elif task_type_val == "generate_plan":
-        days = int(form.get("days", 7))
-        days = max(1, min(days, 14))
-        t = threading.Thread(target=_run_plan_generation, args=(task_id, uid, days), daemon=True)
-        t.start()
+        days = max(1, min(to_int(form.get("days"), 7), 14))
+        job = (_run_plan_generation, days)
 
     elif task_type_val == "generate_image":
-        prompt = form.get("prompt", "")
-        size = form.get("size", "square")
-        style = form.get("style", "none")
         ref_file = form.get("reference_image")
         ref_bytes = None
         if ref_file and hasattr(ref_file, "read"):
-            ref_bytes = await ref_file.read()
+            ref_bytes = await ref_file.read(MAX_IMAGE_BYTES + 1)
             if len(ref_bytes) < 100:
-                ref_bytes = None  # слишком маленький, пропускаем
-        t = threading.Thread(target=_run_image_generation, args=(task_id, uid, prompt, size, style, ref_bytes), daemon=True)
-        t.start()
+                ref_bytes = None  # пустой файл — генерируем без образца
+            elif len(ref_bytes) > MAX_IMAGE_BYTES or not is_image(ref_bytes):
+                return _task_error("Образец должен быть картинкой JPG, PNG, WebP или GIF до 10 МБ.")
+        job = (_run_image_generation, form.get("prompt", ""), form.get("size", "square"),
+               form.get("style", "none"), ref_bytes)
 
     elif task_type_val == "generate_post_image":
-        post_id = int(form.get("post_id", 0))
-        template_key = form.get("template_key", "") or None
-        t = threading.Thread(target=_run_post_image_generation, args=(task_id, uid, post_id, template_key), daemon=True)
-        t.start()
+        job = (_run_post_image_generation, post_id, form.get("template_key", "") or None)
 
     elif task_type_val == "analyze_post_image":
-        post_id = int(form.get("post_id", 0))
-        t = threading.Thread(target=_run_analyze_post_image, args=(task_id, uid, post_id), daemon=True)
-        t.start()
+        job = (_run_analyze_post_image, post_id)
 
     elif task_type_val == "generate_post_image_with_concept":
-        post_id = int(form.get("post_id", 0))
-        concept_prompt = form.get("concept_prompt", "")
-        concept_style = form.get("concept_style", "none")
-        concept_size = form.get("concept_size", "square")
-        t = threading.Thread(
-            target=_run_post_image_generation,
-            args=(task_id, uid, post_id),
-            kwargs={"custom_prompt": concept_prompt, "custom_style": concept_style, "custom_size": concept_size},
-            daemon=True,
-        )
-        t.start()
+        job = (lambda task_id, uid_, pid: _run_post_image_generation(
+            task_id, uid_, pid,
+            custom_prompt=form.get("concept_prompt", ""),
+            custom_style=form.get("concept_style", "none"),
+            custom_size=form.get("concept_size", "square"),
+        ), post_id)
 
     elif task_type_val == "analyze_social_profile":
-        url = form.get("url", "")
-        manual_posts = form.get("manual_posts", "")
-        t = threading.Thread(
-            target=_run_social_analysis,
-            args=(task_id, uid, url, manual_posts),
-            daemon=True,
-        )
-        t.start()
+        job = (_run_social_analysis, form.get("url", ""), form.get("manual_posts", ""))
 
-    elif task_type_val == "modify_post":
-        post_id = int(form.get("post_id", 0))
-        instruction = form.get("instruction", "")
-        t = threading.Thread(
-            target=_run_modify_post,
-            args=(task_id, uid, post_id, instruction),
-            daemon=True,
-        )
-        t.start()
+    else:  # modify_post
+        job = (_run_modify_post, post_id, form.get("instruction", ""))
 
+    task_id = create_task(uid, task_type_val)
+    task_pool.submit(job[0], task_id, uid, *job[1:])
     return {"task_id": task_id, "status": "pending"}
 
 

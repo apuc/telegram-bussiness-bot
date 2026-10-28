@@ -12,11 +12,11 @@
     Run: .\deploy-simple.ps1
 #>
 
+# Вход на сервер — только по SSH-ключу (ssh-copy-id). Пароль в скрипте не хранится.
 [CmdletBinding()]
 param(
     [string]$ServerIP = "31.28.9.200",
     [string]$Username = "root",
-    [string]$Password = "123edcxzaqws",
     [string]$Domain = "press.my-dpr.ru",
     [string]$RemotePath = "/opt/pressa",
     [string]$LocalProjectPath = "C:\python\pressa",
@@ -87,7 +87,7 @@ Write-Host "Archive created: $ArchivePath ($size MB)" -ForegroundColor Green
 
 # Upload to server
 Write-Host "[3/6] Uploading to server ${ServerIP}:${Port}..." -ForegroundColor Yellow
-$sshOptions = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p $Port"
+$sshOptions = "-o StrictHostKeyChecking=accept-new -p $Port"
 
 # Create directory
 $createDir = "mkdir -p $RemotePath && rm -rf $RemotePath/*"

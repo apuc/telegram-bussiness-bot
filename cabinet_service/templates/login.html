@@ -1,15 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Вход — Личный кабинет{% endblock %}
+{% block title %}Вход{% endblock %}
 {% block content %}
-<h1>Вход</h1>
-<form method="post" action="/login" class="form">
-    <label>Email
-        <input type="email" name="email" value="{{ form.email if form else '' }}" required>
-    </label>
-    <label>Пароль
-        <input type="password" name="password" required>
-    </label>
-    <button type="submit">Войти</button>
+<div class="app-stack">
+    <h1 class="ps-h2">Вход в кабинет</h1>
+    <p class="ps-lead">Посты, картинки и контент-план — вашим голосом.</p>
+</div>
+<form method="post" action="/login" class="app-form">
+    <div class="ps-field">
+        <label for="email" class="ps-field-label">Email</label>
+        <input id="email" class="ps-field-control" type="email" name="email" autocomplete="email" value="{{ form.email if form else '' }}" required>
+    </div>
+    <div class="ps-field">
+        <label for="password" class="ps-field-label">Пароль</label>
+        <input id="password" class="ps-field-control" type="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="ps-btn ps-btn--primary ps-btn--lg ps-btn--block">Войти</button>
 </form>
-<p>Ещё нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
+<p class="app-auth-switch">Ещё нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
 {% endblock %}

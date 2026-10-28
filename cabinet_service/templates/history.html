@@ -1,39 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Мои посты — Личный кабинет{% endblock %}
+{% block title %}Мои посты{% endblock %}
 {% block content %}
-<h1>Мои посты</h1>
-{% if posts %}
-<ul class="post-list">
-    {% for post in posts %}
-    <li class="card">
-        <div class="post-meta">{{ platform_label(post.platform) }} · {{ post.created_at }}
-            {% if post.published %} · ✅ Опубликован{% endif %}
-        </div>
-        <div class="post-content" id="post-content-{{ post.id }}">{{ post.content }}</div>
-        {% if post.images %}
-        <div class="post-images">
-            {% for img in post.images %}
-            <img src="/media/{{ img.filename }}" class="post-thumb" alt="">
-            {% endfor %}
-        </div>
-        {% endif %}
-        <div class="post-actions">
-            <button type="button" class="copy-btn" data-copy-target="post-content-{{ post.id }}">📋 Копировать</button>
-            <a class="button-link" href="/posts/{{ post.id }}">👁 Открыть</a>
-            <a class="button-link" href="/posts/{{ post.id }}/edit">✏️ Изменить</a>
-            <form method="post" action="/posts/{{ post.id }}/delete" class="inline-form"
-                  onsubmit="return confirm('Удалить этот пост? Действие необратимо.');">
-                <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
-            </form>
-        </div>
-    </li>
-    {% endfor %}
-</ul>
-{% else %}
-<div class="card">
-    <p>Постов пока нет.</p>
-    <p><a href="/generate">💡 Сгенерировать первый пост</a></p>
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Мои посты</h1>
+        {% if posts %}<p class="ps-lead">{{ posts|length }} {{ plural(posts|length, ['пост', 'поста', 'постов']) }}. Откройте пост, чтобы доработать его в чате с ИИ, добавить картинки и опубликовать.</p>{% endif %}
+    </div>
+    <a href="/generate" class="ps-btn ps-btn--primary">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Создать пост</span></a>
 </div>
+
+{% if posts %}
+<div class="ps-grid-3" style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr))">
+    {% for post in posts %}{% include "_post_card.html" %}{% endfor %}
+</div>
+{% else %}
+<section class="ps-panel">
+    <div class="ps-empty">
+        <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('news', 28) }}</span>
+        <h2 class="ps-empty-title">Постов пока нет</h2>
+        <p class="ps-empty-text">Выберите платформу и стиль — первый пост появится здесь.</p>
+        <a href="/generate" class="ps-btn ps-btn--primary">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Создать пост</span></a>
+    </div>
+</section>
 {% endif %}
-<p><a href="/dashboard">← Назад в кабинет</a></p>
 {% endblock %}

@@ -12,11 +12,11 @@
     Запуск: .\deploy.ps1
 #>
 
+# Вход на сервер — только по SSH-ключу (ssh-copy-id). Пароль в скрипте не хранится.
 [CmdletBinding()]
 param(
     [string]$ServerIP = "31.28.9.200",
     [string]$Username = "root",
-    [string]$Password = "123edcxzaqws",
     [string]$Domain = "press.my-dpr.ru",
     [string]$RemotePath = "/opt/pressa",
     [string]$LocalProjectPath = "C:\python\pressa"
@@ -118,17 +118,17 @@ Write-Status "Архив создан: $ArchivePath ($((Get-Item $ArchivePath).L
 Write-Info "Загрузка на сервер $ServerIP..."
 
 # Создаём директорию на сервере
-$sshCmd = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${Username}@${ServerIP}"
+$sshCmd = "ssh -o StrictHostKeyChecking=accept-new ${Username}@${ServerIP}"
 $createDir = "mkdir -p $RemotePath && rm -rf $RemotePath/*"
 
 Write-Info "Создание директории на сервере..."
-$createDir | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${Username}@${ServerIP} "bash -s"
+$createDir | ssh -o StrictHostKeyChecking=accept-new ${Username}@${ServerIP} "bash -s"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Не удалось подключиться по SSH!"
     Write-Info "Проверь:"
     Write-Info "  1. IP-адрес сервера"
-    Write-Info "  2. Логин и пароль"
+    Write-Info "  2. SSH-ключ добавлен на сервер (ssh-copy-id)"
     Write-Info "  3. Доступность порта 22"
     exit 1
 }
@@ -137,7 +137,7 @@ Write-Status "Подключение установлено"
 
 # Загружаем архив
 Write-Info "Загрузка архива..."
-scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $ArchivePath "${Username}@${ServerIP}:${RemotePath}/"
+scp -o StrictHostKeyChecking=accept-new $ArchivePath "${Username}@${ServerIP}:${RemotePath}/"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Ошибка загрузки файлов!"
@@ -196,7 +196,7 @@ echo "  systemctl restart pressa"
 "@
 
 Write-Info "Запуск установочных скриптов (это займет 5-10 минут)..."
-$remoteCommands | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${Username}@${ServerIP} "bash -s"
+$remoteCommands | ssh -o StrictHostKeyChecking=accept-new ${Username}@${ServerIP} "bash -s"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Warning "Возможны ошибки при установке. Проверь логи на сервере."
@@ -222,7 +222,7 @@ echo "=== Готово! ==="
 echo "Сайт доступен по адресу: https://$Domain"
 "@
 
-$nginxCommands | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${Username}@${ServerIP} "bash -s"
+$nginxCommands | ssh -o StrictHostKeyChecking=accept-new ${Username}@${ServerIP} "bash -s"
 
 # === ФИНАЛ ===
 Write-Status "Деплой завершён!"

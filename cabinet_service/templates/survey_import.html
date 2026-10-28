@@ -1,26 +1,45 @@
 {% extends "base.html" %}
-{% block title %}Загрузить медиа-образ — Личный кабинет{% endblock %}
+{% block title %}Загрузить медиа-образ{% endblock %}
 {% block content %}
-<h1>Загрузить медиа-образ</h1>
-
-<div class="card">
-  <p>Загрузите готовый медиа-образ файлом — он будет автоматически разобран и сохранён.</p>
-  <p class="form-hint">Поддерживаются два формата:</p>
-  <ul>
-    <li><strong>.docx</strong> — документ стратегии (как образец). Разбирается через ИИ: извлекаются личность, УТП, Tone of Voice, столпы контента, архетипы и все поля опроса.</li>
-    <li><strong>.json</strong> — структурированные данные опроса (прямой импорт полей).</li>
-  </ul>
+<div class="ps-main-head">
+    <div>
+        <a href="/surveys" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">Медиа-образы</span></a>
+        <h1 class="ps-h1">Загрузить медиа-образ</h1>
+        <p class="ps-lead">Готовый файл разберётся сам и сохранится как новый медиа-образ.</p>
+    </div>
 </div>
 
-<form method="post" action="/survey/import" enctype="multipart/form-data" class="form">
-  <label>Файл медиа-образа
-    <input type="file" name="file" accept=".docx,.json" required>
-  </label>
-  <button type="submit">📤 Загрузить</button>
-</form>
-
-<div class="post-actions">
-  <a href="/survey" class="copy-btn">➕ Заполнить форму вручную</a>
-  <a href="/surveys" class="copy-btn">← К списку медиа-образов</a>
+<div class="ps-split" style="--ps-aside: 340px">
+    <form method="post" action="/survey/import" enctype="multipart/form-data" class="ps-panel app-form" id="importForm">
+        <label class="ps-drop" id="drop">
+            <input type="file" name="file" accept=".docx,.json" class="ps-drop-input" id="fileInput" required>
+            <span class="ps-drop-icon" aria-hidden="true">{{ ui.icon('upload', 24) }}</span>
+            <span class="ps-drop-title" id="dropTitle">Перетащите файл или выберите на устройстве</span>
+            <span class="ps-drop-hint">.docx или .json</span>
+        </label>
+        <div class="app-actions">
+            <button type="submit" class="ps-btn ps-btn--primary">{{ ui.icon('upload', 20) }}<span class="ps-btn-label">Загрузить</span></button>
+            <a href="/survey" class="ps-btn ps-btn--quiet"><span class="ps-btn-label">Заполнить анкету вручную</span></a>
+        </div>
+    </form>
+    <aside class="ps-panel">
+        <h2 class="ps-h2">Форматы</h2>
+        <div class="app-stack">
+            <div><strong>.docx</strong> <span class="app-muted">— документ стратегии. ИИ извлечёт личность, УТП, тон голоса, столпы контента и все поля анкеты.</span></div>
+            <div><strong>.json</strong> <span class="app-muted">— структурированные данные анкеты, импорт полей напрямую.</span></div>
+        </div>
+    </aside>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var drop = document.getElementById('drop'), input = document.getElementById('fileInput'), title = document.getElementById('dropTitle');
+    function show() { if (input.files.length) title.textContent = input.files[0].name; }
+    input.addEventListener('change', show);
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('is-over'); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('is-over'); input.files = e.dataTransfer.files; show(); });
+})();
+</script>
 {% endblock %}

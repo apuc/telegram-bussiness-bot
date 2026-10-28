@@ -364,13 +364,19 @@ def update_user_field_by_id(user_id, field, value):
 
 
 def delete_user_by_id(user_id):
-    """Удаляет пользователя веб-кабинета и всю его историю постов."""
+    """Удаляет пользователя веб-кабинета и все его данные (152-ФЗ).
+    Возвращает имена файлов картинок — их удаляет вызывающий код из папки media."""
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
+    files = [r[0] for r in cursor.execute('SELECT filename FROM media WHERE user_id = ?', (user_id,))]
+    files += [r[0] for r in cursor.execute('SELECT filename FROM post_images WHERE user_id = ?', (user_id,))]
+    for table in ('post_revisions', 'post_images', 'posts', 'media', 'brand_surveys', 'content_plan',
+                  'channels', 'provider_settings', 'tasks'):
+        cursor.execute(f'DELETE FROM {table} WHERE user_id = ?', (user_id,))
     cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
-    cursor.execute('DELETE FROM posts WHERE user_id = ?', (user_id,))
     conn.commit()
     conn.close()
+    return [f for f in files if f]
 
 
 def save_post_for_user(user_id, platform, content, style=None, wishes=None):
@@ -396,7 +402,7 @@ def get_posts_for_user(user_id, limit=10):
     conn = _row_conn()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT id, platform, content, style, wishes, created_at
+        SELECT id, platform, content, style, wishes, created_at, published
         FROM posts
         WHERE user_id = ?
         ORDER BY created_at DESC
@@ -528,16 +534,20 @@ def update_plan_status(user_id, item_id, status):
         'UPDATE content_plan SET status = ? WHERE id = ? AND user_id = ?',
         (status, item_id, user_id)
     )
+    found = cursor.rowcount > 0
     conn.commit()
     conn.close()
+    return found
 
 
 def delete_plan_item(user_id, item_id):
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
     cursor.execute('DELETE FROM content_plan WHERE id = ? AND user_id = ?', (item_id, user_id))
+    found = cursor.rowcount > 0
     conn.commit()
     conn.close()
+    return found
 
 
 def get_plan_stats_for_user(user_id):
@@ -642,7 +652,7 @@ def get_latest_brand_survey_for_user(user_id):
     conn = _row_conn()
     cursor = conn.cursor()
     cursor.execute(
-        'SELECT * FROM brand_surveys WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+        'SELECT * FROM brand_surveys WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1',
         (user_id,)
     )
     row = cursor.fetchone()
@@ -967,6 +977,32 @@ def update_task_status(task_id, status, result_json=None, error=None):
     cursor.execute(
         'UPDATE tasks SET status = ?, result_json = ?, error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         (status, result_json, error, task_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def count_user_tasks(user_id, minutes, active_only=False):
+    """Сколько задач пользователь запустил за последние minutes минут (active_only — только незавершённые)."""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    query = "SELECT COUNT(*) FROM tasks WHERE user_id = ? AND created_at >= datetime('now', ?)"
+    if active_only:
+        query += " AND status IN ('pending', 'running')"
+    cursor.execute(query, (user_id, f'-{int(minutes)} minutes'))
+    n = cursor.fetchone()[0]
+    conn.close()
+    return n
+
+
+def fail_unfinished_tasks():
+    """После перезапуска сервиса потоки незавершённых задач потеряны — помечаем их ошибкой."""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE tasks SET status = 'error', error = ?, updated_at = CURRENT_TIMESTAMP "
+        "WHERE status IN ('pending', 'running')",
+        ('Задача прервана перезапуском сервиса. Повторите.',)
     )
     conn.commit()
     conn.close()

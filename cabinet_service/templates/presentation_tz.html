@@ -2,218 +2,134 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ТЗ — Презентация сервиса «ИИ Пресс-секретарь»</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ТЗ на презентацию · ИИ Пресс-секретарь</title>
     <meta name="description" content="Техническое задание на создание 10-слайдовой презентации сервиса ИИ Пресс-секретарь.">
+    <link rel="icon" type="image/svg+xml" href="/static/press/app-icon.svg">
+    <link rel="stylesheet" href="/static/press/tokens.css?v=2">
+    <link rel="stylesheet" href="/static/press/components.css?v=4">
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('theme');
+                if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
+            } catch (e) {}
+        })();
+    </script>
+    <script src="/static/press/glass.js?v=4" defer></script>
     <style>
-        :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --surface-2: #273449;
-            --text: #e2e8f0;
-            --text-muted: #94a3b8;
-            --accent: #60a5fa;
-            --accent-hover: #93c5fd;
-            --accent-soft: #1e3a5f;
-            --border: #334155;
-            --border-strong: #475569;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Страница-документ на токенах дизайн-системы: ширина текста 720–900, ритм 4/16/32 */
+        * { box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
+            margin: 0;
+            font-family: var(--font-text);
+            background: var(--surface-sunken);
+            color: var(--ink);
+            line-height: 1.5;
+            hyphens: manual;
+            overflow-wrap: break-word;
         }
-        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 0 var(--page-gutter); }
 
-        /* Header */
         .header {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 16px 0;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            position: sticky; top: 0; z-index: 10;
+            background: var(--surface-glass);
+            -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.8);
+            backdrop-filter: blur(var(--blur-glass)) saturate(1.8);
+            border-bottom: 1px solid var(--hairline);
         }
-        .header-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-        }
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 700;
-            font-size: 18px;
-            color: var(--text);
-            text-decoration: none;
-        }
-        .brand-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: var(--accent);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-        }
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            border: none;
-            transition: background .15s ease;
-        }
-        .btn-primary { background: var(--accent); color: #fff; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
-        .btn-ghost:hover { background: var(--accent-soft); }
+        .header-inner { display: flex; align-items: center; gap: var(--space-3); min-height: 64px; }
+        .header-inner .brand { margin-right: auto; display: inline-flex; align-items: center; min-height: var(--target-min); color: inherit; text-decoration: none; }
 
-        /* Content */
-        .content { padding: 48px 0 72px; }
-        .doc-title {
-            font-size: 32px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 8px;
-        }
-        .doc-subtitle {
-            color: var(--text-muted);
-            font-size: 17px;
-            margin-bottom: 40px;
-        }
+        .content { padding: var(--space-12) 0 var(--space-16); }
+        .doc-title { margin: 0 0 var(--stack-text); }
+        .doc-subtitle { margin: 0 0 var(--stack-section); }
 
         .section {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 28px 28px;
-            margin-bottom: 24px;
+            background: var(--surface-raised);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-1);
+            padding: var(--space-8);
+            margin-bottom: var(--stack-group);
         }
+        .section--accent { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset, var(--shadow-1); }
         .section h2 {
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            color: var(--accent);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            display: flex; align-items: center; gap: var(--space-3);
+            margin: 0 0 var(--stack-group);
+            font-family: var(--font-display); font-size: 22px; line-height: 28px; font-weight: 600;
         }
-        .section h3 {
-            font-size: 17px;
-            font-weight: 600;
-            margin: 18px 0 8px;
-        }
-        .section p { color: var(--text-muted); margin-bottom: 10px; }
-        .section ul { padding-left: 20px; margin-bottom: 10px; }
-        .section li { color: var(--text-muted); margin-bottom: 6px; }
-        .section li strong { color: var(--text); }
+        .section h2 .ps-icon { color: var(--brand); flex: none; }
+        .section h3 { margin: var(--space-5) 0 var(--space-2); font-size: 17px; line-height: 24px; font-weight: 600; }
+        .section p, .section li { color: var(--ink-secondary); text-wrap: pretty; }
+        .section p { margin: 0 0 var(--space-3); }
+        .section ul { margin: 0; padding-left: var(--space-5); }
+        .section li { margin-bottom: var(--space-2); }
+        .section li strong { color: var(--ink); }
+        .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
-        .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 10px;
-        }
-        .meta-item {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px 16px;
-        }
-        .meta-item .label {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-4); }
+        .meta-grid + p { margin-top: var(--stack-group); }
+        .meta-item { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: var(--space-4); }
+        .meta-item .label { font-size: 13px; line-height: 16px; color: var(--ink-secondary); margin-bottom: var(--space-1); }
         .meta-item .value { font-weight: 600; }
 
-        /* Slides table */
-        .slides-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .slides-table th, .slides-table td {
-            border: 1px solid var(--border);
-            padding: 10px 14px;
-            text-align: left;
-            vertical-align: top;
-        }
-        .slides-table th {
-            background: var(--surface-2);
-            font-weight: 600;
-            color: var(--text);
-        }
-        .slides-table td { color: var(--text-muted); }
-        .slides-table td:first-child { color: var(--accent); font-weight: 600; white-space: nowrap; }
+        .table-wrap { overflow-x: auto; margin: 0 calc(-1 * var(--space-2)); }
+        .slides-table { width: 100%; border-collapse: collapse; }
+        .slides-table th, .slides-table td { padding: var(--space-3) var(--space-2); text-align: left; vertical-align: top; border-bottom: 1px solid var(--hairline); }
+        .slides-table th { font-size: 13px; line-height: 16px; font-weight: 600; color: var(--ink-secondary); }
+        .slides-table td { color: var(--ink-secondary); }
+        .slides-table td:nth-child(2) { color: var(--ink); font-weight: 600; }
+        .slides-table td:first-child { color: var(--brand); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .slides-table tr:last-child td { border-bottom: 0; }
 
         .tag {
-            display: inline-block;
-            background: var(--accent-soft);
-            color: var(--accent);
-            border-radius: 6px;
-            padding: 2px 10px;
-            font-size: 13px;
-            font-weight: 600;
-            margin: 2px 4px 2px 0;
+            display: inline-flex; align-items: center;
+            background: var(--brand-tint); color: var(--brand-pressed);
+            border-radius: var(--radius-pill);
+            padding: var(--space-1) var(--space-3);
+            font-size: 13px; line-height: 16px; font-weight: 600;
+            margin: 0 var(--space-1) var(--space-2) 0;
         }
 
-        .footer {
-            padding: 24px 0;
-            border-top: 1px solid var(--border);
-            background: var(--surface);
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 14px;
-        }
+        .footer { padding: var(--space-6) 0; border-top: 1px solid var(--hairline); color: var(--ink-secondary); font-size: 15px; text-align: center; }
+        .footer a { color: var(--brand); display: inline-block; padding: var(--space-3) var(--space-1); }
 
         @media (max-width: 640px) {
-            .doc-title { font-size: 26px; }
-            .content { padding: 32px 0 48px; }
-            .section { padding: 20px; }
+            .container { padding: 0 var(--space-4); }
+            .content { padding: var(--space-8) 0 var(--space-12); }
+            .section { padding: var(--space-5); border-radius: var(--radius-lg); }
+            /* На телефоне в шапке только логотип и тема: скачивание — в первом блоке страницы */
+            .header-inner .ps-btn { display: none; }
         }
     </style>
 </head>
 <body>
     <header class="header">
         <div class="container header-inner">
-            <a class="brand" href="/">
-                <span class="brand-icon">🤖</span>
-                <span>ИИ Пресс-секретарь</span>
-            </a>
-            <a class="btn btn-ghost" href="/">На сайт</a>
-            <a class="btn btn-primary" href="/static/pressa-presentation.pptx" download>Скачать презентацию</a>
+            <a class="brand" href="/" aria-label="ИИ Пресс-секретарь — на главную">{{ ui.logo('tzlogo', 'color', 28) }}</a>
+            <button type="button" class="ps-iconbtn" data-theme-toggle aria-label="Сменить тему">{{ ui.icon('theme', 22) }}</button>
+            <a class="ps-btn ps-btn--quiet" href="/"><span class="ps-btn-label">На сайт</span></a>
+            <a class="ps-btn ps-btn--primary" href="/presentation.pptx" download>{{ ui.icon('download', 20) }}<span class="ps-btn-label">Презентация</span></a>
         </div>
     </header>
 
     <main class="content">
         <div class="container">
-            <h1 class="doc-title">Техническое задание</h1>
-            <p class="doc-subtitle">На создание 10-слайдовой презентации сервиса «ИИ Пресс-секретарь»</p>
+            <h1 class="ps-h1 doc-title">Техническое задание</h1>
+            <p class="ps-lead doc-subtitle">На создание 10-слайдовой презентации сервиса «ИИ Пресс-секретарь»</p>
 
-            <div class="section" style="border-color: var(--accent);">
-                <h2>📥 Готовая презентация</h2>
+            <div class="section section--accent">
+                <h2>{{ ui.icon('download', 24) }}Готовая презентация</h2>
                 <p>Презентация создана по этому ТЗ (10 слайдов, 16:9). Изображения сгенерированы через ИИ.</p>
-                <p style="margin-top: 12px;">
-                    <a class="btn btn-primary" href="/static/pressa-presentation.pptx" download>⬇️ Скачать презентацию (PPTX)</a>
-                    <a class="btn btn-ghost" href="/static/pressa-presentation.pdf" download>📄 Скачать PDF</a>
-                </p>
+                <div class="actions">
+                    <a class="ps-btn ps-btn--primary" href="/presentation.pptx" download>{{ ui.icon('download', 20) }}<span class="ps-btn-label">Скачать PPTX</span></a>
+                    <a class="ps-btn ps-btn--secondary" href="/presentation.pdf" download>{{ ui.icon('news', 20) }}<span class="ps-btn-label">Скачать PDF</span></a>
+                </div>
             </div>
 
             <div class="section">
-                <h2>📋 Общая информация</h2>
+                <h2>{{ ui.icon('info', 24) }}Общая информация</h2>
                 <div class="meta-grid">
                     <div class="meta-item">
                         <div class="label">Название сервиса</div>
@@ -236,7 +152,7 @@
             </div>
 
             <div class="section">
-                <h2>🎯 Цель презентации</h2>
+                <h2>{{ ui.icon('sparkle', 24) }}Цель презентации</h2>
                 <p>Показать ценность сервиса «ИИ Пресс-секретарь» как комплексного решения для генерации и публикации контента в Telegram. Презентация должна:</p>
                 <ul>
                     <li>Заинтересовать потенциального клиента и побудить зарегистрироваться</li>
@@ -247,21 +163,23 @@
             </div>
 
             <div class="section">
-                <h2>🎨 Требования к стилю и дизайну</h2>
+                <h2>{{ ui.icon('image', 24) }}Требования к стилю и дизайну</h2>
                 <ul>
-                    <li><strong>Цветовая гамма:</strong> тёмная тема (тёмно-синий фон <code>#0f172a</code>, поверхности <code>#1e293b</code>), акцент — синий <code>#60a5fa</code> / <code>#2563eb</code>. Светлый текст <code>#e2e8f0</code>.</li>
-                    <li><strong>Стиль:</strong> современный, технологичный, чистый, минималистичный. Без перегруженности.</li>
-                    <li><strong>Шрифты:</strong> современные гротески (Inter, Manrope, Montserrat, Roboto).</li>
-                    <li><strong>Иконки:</strong> плоские, линейные, в едином стиле (можно эмодзи: ✍️ 🎨 📅 📣 🤖).</li>
-                    <li><strong>Изображения:</strong> сгенерированные иллюстрации в стиле сайта (робот-ассистент, элементы контент-маркетинга).</li>
+                    <li><strong>Брендбук:</strong> дизайн-система «ИИ Пресс-секретарь», версия 2 «Жидкое стекло» — те же токены, что у сайта и кабинета.</li>
+                    <li><strong>Цвет:</strong> фон <code>surface</code> #f4f7fb, карточки <code>surface-raised</code> #ffffff с рамкой <code>hairline</code> #d6e0ec, текст <code>ink</code> #0e1b2e и <code>ink-secondary</code> #46566c, акцент <code>brand</code> #1d71b8. Обложка и финальный слайд — градиент бренда #009fe3 → #1d71b8 с белым знаком.</li>
+                    <li><strong>Шрифт:</strong> Donbass (Regular, Medium, SemiBold, Bold), встроен в файл.</li>
+                    <li><strong>Логотип:</strong> только файлы из группы «Logos»: цветной логотип с надписью на светлых слайдах, белый — на градиенте. Знак не обрезается и не перекрашивается.</li>
+                    <li><strong>Иконки:</strong> линейные иконки дизайн-системы в плитках <code>brand-tint</code>. Без эмодзи.</li>
+                    <li><strong>Изображения:</strong> реальные экраны кабинета (главная, создание поста, пост с чатом правок, контент-план).</li>
+                    <li><strong>Тексты:</strong> по правилам голоса брендбука — на «вы», коротко, регистр как в предложении, «ёлочки» и длинное тире.</li>
                     <li><strong>Язык:</strong> русский.</li>
-                    <li><strong>Формат слайдов:</strong> 16:9 (1920×1080).</li>
+                    <li><strong>Формат слайдов:</strong> 16:9 (13,33 × 7,5 дюйма).</li>
                 </ul>
             </div>
 
             <div class="section">
-                <h2>📑 Структура презентации (10 слайдов)</h2>
-                <table class="slides-table">
+                <h2>{{ ui.icon('grid', 24) }}Структура презентации (10 слайдов)</h2>
+                <div class="table-wrap"><table class="slides-table">
                     <thead>
                         <tr>
                             <th>№</th>
@@ -293,7 +211,7 @@
                         <tr>
                             <td>5</td>
                             <td><strong>Медиа-образ</strong></td>
-                            <td>Уникальный медиа-образ бренда: опрос о бизнесе, ИИ формирует бренд-бук, все посты в едином стиле, импорт из Telegram/VK/Tenchat/Instagram.</td>
+                            <td>Уникальный медиа-образ бренда: опрос о бизнесе, ИИ формирует бренд-бук, все посты в едином стиле, импорт из Telegram/VK/TenChat/Instagram.</td>
                         </tr>
                         <tr>
                             <td>6</td>
@@ -321,11 +239,11 @@
                             <td>«Готовы начать?» — кнопки «Зарегистрироваться» и «Войти в кабинет», ссылка на сайт.</td>
                         </tr>
                     </tbody>
-                </table>
+                </table></div>
             </div>
 
             <div class="section">
-                <h2>🛠️ Технические требования</h2>
+                <h2>{{ ui.icon('settings', 24) }}Технические требования</h2>
                 <ul>
                     <li>Формат: <strong>PPTX</strong> (PowerPoint) или <strong>PDF</strong></li>
                     <li>Соотношение сторон: <strong>16:9</strong></li>
@@ -338,7 +256,7 @@
             </div>
 
             <div class="section">
-                <h2>🔗 Ключевые факты о сервисе</h2>
+                <h2>{{ ui.icon('link', 24) }}Ключевые факты о сервисе</h2>
                 <p>Ссылки для использования в презентации:</p>
                 <p>
                     <span class="tag">Сайт: press.my-dpr.ru</span>
@@ -353,7 +271,7 @@
                     <li>Статистика, чат с ИИ, подключение каналов</li>
                 </ul>
                 <h3>Поддерживаемые платформы для анализа</h3>
-                <p>Telegram, VK, Tenchat, Instagram</p>
+                <p>Telegram, VK, TenChat, Instagram</p>
                 <h3>Технологии</h3>
                 <p>Python, FastAPI, SQLite, ИИ (OpenAI GPT, PiAPI)</p>
             </div>
