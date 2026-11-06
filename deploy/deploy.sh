@@ -9,6 +9,8 @@ APP_DIR="/opt/pressa"
 REPO_URL="https://github.com/apuc/telegram-bussiness-bot.git"
 SERVICE_NAME="pressa"
 PYTHON_BIN="$APP_DIR/venv/bin/python"
+# Сервис работает от отдельного пользователя без shell и sudo, не от root
+SERVICE_USER="pressa"
 
 echo "=== Деплой ИИ Пресс-секретарь ==="
 echo ""
@@ -17,6 +19,8 @@ echo ""
 if [ -d "$APP_DIR/.git" ]; then
     echo "[1/5] Обновление кода из git..."
     cd "$APP_DIR"
+    # Каталог принадлежит пользователю сервиса — разрешаем git работать в нём
+    git config --global --add safe.directory "$APP_DIR"
     git pull origin main
 else
     echo "[1/5] Клонирование репозитория..."
@@ -44,6 +48,14 @@ fi
 
 # 4. systemd-сервис
 echo "[4/5] Настройка systemd-сервиса..."
+if ! id "$SERVICE_USER" >/dev/null 2>&1; then
+    sudo useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin "$SERVICE_USER"
+fi
+# Код читает, пишет только базу, медиа и логи; .env доступен только сервису
+sudo chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
+[ -f "$APP_DIR/.env" ] && sudo chmod 600 "$APP_DIR/.env"
+# В базе лежат ключи API и токены TenChat — читать её может только сервис
+[ -f "$APP_DIR/users.db" ] && sudo chmod 600 "$APP_DIR/users.db"
 sudo tee /etc/systemd/system/$SERVICE_NAME.service > /dev/null <<EOF
 [Unit]
 Description=AI Press Secretary (Telegram bot + Cabinet)
@@ -51,12 +63,17 @@ After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=$SERVICE_USER
+Group=$SERVICE_USER
 WorkingDirectory=$APP_DIR
 EnvironmentFile=$APP_DIR/.env
 ExecStart=$PYTHON_BIN $APP_DIR/main.py
 Restart=always
 RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target

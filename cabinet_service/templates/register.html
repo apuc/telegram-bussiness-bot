@@ -1,24 +1,33 @@
 {% extends "base.html" %}
-{% block title %}Регистрация — Личный кабинет{% endblock %}
+{% block title %}Регистрация{% endblock %}
 {% block content %}
-<h1>Регистрация</h1>
-<form method="post" action="/register" class="form">
-    <label>Имя
-        <input type="text" name="name" value="{{ form.name if form else '' }}" required>
-    </label>
-    <label>Телефон
-        <input type="text" name="phone" value="{{ form.phone if form else '' }}" required>
-    </label>
-    <label>Email
-        <input type="email" name="email" value="{{ form.email if form else '' }}" required>
-    </label>
-    <label>Пароль
-        <input type="password" name="password" minlength="8" required>
-    </label>
-    <label>Повтори пароль
-        <input type="password" name="password_confirm" minlength="8" required>
-    </label>
-    <button type="submit">Зарегистрироваться</button>
+<div class="app-stack">
+    <h1 class="ps-h2">Регистрация</h1>
+    <p class="ps-lead">После регистрации начнём с медиа-образа — это 5 минут.</p>
+</div>
+<form method="post" action="/register" class="app-form">
+    <div class="ps-field">
+        <label for="name" class="ps-field-label">Имя</label>
+        <input id="name" class="ps-field-control" type="text" name="name" autocomplete="name" value="{{ form.name if form else '' }}" required>
+    </div>
+    <div class="ps-field">
+        <label for="phone" class="ps-field-label">Телефон</label>
+        <input id="phone" class="ps-field-control" type="tel" name="phone" autocomplete="tel" placeholder="+7 900 000-00-00" value="{{ form.phone if form else '' }}" required>
+    </div>
+    <div class="ps-field">
+        <label for="email" class="ps-field-label">Email</label>
+        <input id="email" class="ps-field-control" type="email" name="email" autocomplete="email" value="{{ form.email if form else '' }}" required>
+    </div>
+    <div class="ps-field">
+        <label for="password" class="ps-field-label">Пароль</label>
+        <input id="password" class="ps-field-control" type="password" name="password" autocomplete="new-password" minlength="8" aria-describedby="password-hint" required>
+        <p id="password-hint" class="ps-field-hint"><span>Не короче 8 знаков</span></p>
+    </div>
+    <div class="ps-field">
+        <label for="password_confirm" class="ps-field-label">Повторите пароль</label>
+        <input id="password_confirm" class="ps-field-control" type="password" name="password_confirm" autocomplete="new-password" minlength="8" required>
+    </div>
+    <button type="submit" class="ps-btn ps-btn--primary ps-btn--lg ps-btn--block">Зарегистрироваться</button>
 </form>
-<p>Уже есть аккаунт? <a href="/login">Войти</a></p>
+<p class="app-auth-switch">Уже есть аккаунт? <a href="/login">Войти</a></p>
 {% endblock %}

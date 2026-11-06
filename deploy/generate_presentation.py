@@ -1,422 +1,436 @@
-"""Генерация 10-слайдовой презентации сервиса «ИИ Пресс-секретарь» по ТЗ."""
+"""Презентация сервиса «ИИ Пресс-секретарь» — 10 слайдов 16:9 по брендбуку (дизайн-система «Жидкое стекло»).
+
+Запуск из корня проекта:
+    python deploy/build_presentation_assets.py   # логотипы и иконки из дизайн-системы (один раз)
+    python deploy/generate_presentation.py       # PPTX в корне проекта
+
+PDF и встраивание шрифта Donbass — через PowerPoint (см. export_presentation.ps1).
+Нужны python-pptx и Pillow; шрифт Donbass должен быть установлен в системе.
+
+Слайд рисуется на холсте 1280×720 px: координаты в px, 1 px = 9525 EMU. Ритм отступов — 8 px.
+"""
 from pathlib import Path
 
+from PIL import Image, ImageDraw, ImageFilter
 from pptx import Presentation
-from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.oxml.ns import qn
+from pptx.util import Emu, Pt
 
-# === Палитра (тёмная тема из ТЗ) ===
-BG = RGBColor(0x0F, 0x17, 0x2A)          # #0f172a
-SURFACE = RGBColor(0x1E, 0x29, 0x3B)     # #1e293b
-SURFACE_2 = RGBColor(0x27, 0x34, 0x49)   # #273449
-TEXT = RGBColor(0xE2, 0xE8, 0xF0)        # #e2e8f0
-MUTED = RGBColor(0x94, 0xA3, 0xB8)       # #94a3b8
-ACCENT = RGBColor(0x60, 0xA5, 0xFA)      # #60a5fa
-ACCENT_DARK = RGBColor(0x25, 0x63, 0xEB) # #2563eb
-WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-BORDER = RGBColor(0x33, 0x41, 0x55)      # #334155
+HERE = Path(__file__).resolve().parent
+IMG = HERE / "presentation_images"
+BRAND = IMG / "brand"
+SCREENS = IMG / "screens"
+BUILD = IMG / "build"
+OUT = HERE.parent / "ИИ_Пресс-секретарь_презентация.pptx"
 
-FONT = "Inter"
-FONT_FALLBACK = "Arial"
-
-SLIDE_W = Inches(13.333)
-SLIDE_H = Inches(7.5)
+W, H = 1280, 720
+M = 64                  # поля слайда
+TOTAL = 10
 
 
-def set_font(run, size, color=TEXT, bold=False, name=FONT):
-    run.font.size = Pt(size)
-    run.font.color.rgb = color
-    run.font.bold = bold
-    run.font.name = name
+def hex_rgb(h):
+    h = h.lstrip("#")
+    return RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
-def add_bg(slide, color=BG):
-    """Заливает весь слайд цветом."""
-    slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = color
+# === Токены светлой темы (tokens.json) ===
+T = {k: hex_rgb(v) for k, v in {
+    "surface": "#f4f7fb", "raised": "#ffffff", "sunken": "#e9eff6", "hairline": "#d6e0ec",
+    "ink": "#0e1b2e", "ink2": "#46566c", "ink3": "#5d6d84",
+    "brand": "#1d71b8", "brand_bright": "#009fe3", "logo_deep": "#1d71b8", "logo_shade": "#312783",
+    "brand_tint": "#e9f4fc", "indigo": "#312783", "indigo_tint": "#ecebfa",
+    "success": "#0b7552", "success_tint": "#e1f3eb", "white": "#ffffff",
+}.items()}
+
+# Donbass: Regular/Bold — семейство «Donbass», полужирный и средний — отдельные семейства
+F_REG, F_MED, F_SEMI, F_BOLD = "Donbass", "Donbass Medium", "Donbass SemiBold", "Donbass"
 
 
-def add_rect(slide, x, y, w, h, fill=SURFACE, line=None, radius=False):
-    """Добавляет прямоугольник (карточку)."""
-    shape_type = MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE
-    shape = slide.shapes.add_shape(shape_type, x, y, w, h)
-    if radius:
-        try:
-            shape.adjustments[0] = 0.06
-        except Exception:
-            pass
+def px(v):
+    return Emu(int(round(v * 9525)))
+
+
+def fpx(v):
+    """Кегль и интерлиньяж в px холста → pt (1280 px = 960 pt)."""
+    return Pt(v * 0.75)
+
+
+# === Растровые подложки (Pillow) ===
+
+def _gradient(size, c1, c2, angle_down_left=True):
+    """Линейный градиент бренда 200°: brand-bright сверху справа → logo-deep снизу слева."""
+    w, h = size
+    img = Image.new("RGB", size)
+    a = Image.linear_gradient("L").resize((w, h))          # 0 сверху → 255 снизу
+    b = Image.linear_gradient("L").rotate(90).resize((w, h))  # 0 справа → 255 слева
+    mix = Image.blend(a, b, 0.36 if angle_down_left else 0)
+    img = Image.composite(Image.new("RGB", size, c2), Image.new("RGB", size, c1), mix)
+    return img
+
+
+def _blob(base, xy, r, color, alpha):
+    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    ImageDraw.Draw(layer).ellipse([xy[0] - r, xy[1] - r, xy[0] + r, xy[1] + r], fill=color + (int(255 * alpha),))
+    layer = layer.filter(ImageFilter.GaussianBlur(r * 0.45))
+    base.alpha_composite(layer)
+
+
+def build_backgrounds():
+    BUILD.mkdir(parents=True, exist_ok=True)
+    S = 2  # рендер в 2× — без ступенек на больших экранах
+    # Контентные слайды: surface + пятна ambient-1..3, как фон кабинета
+    bg = Image.new("RGBA", (W * S, H * S), (244, 247, 251, 255))
+    _blob(bg, (80 * S, -40 * S), 420 * S, (0, 159, 227), 0.16)
+    _blob(bg, (1240 * S, 40 * S), 380 * S, (49, 39, 131), 0.08)
+    _blob(bg, (700 * S, 820 * S), 460 * S, (29, 113, 184), 0.10)
+    bg.convert("RGB").save(BUILD / "bg-surface.png")
+
+    # Обложка и финал: градиент бренда + белый знак целиком (без обрезки листов), 14% белого
+    for name, mark_h, mark_x, mark_y in (("bg-cover", 440, 652, 140), ("bg-cta", 0, 0, 0)):
+        g = _gradient((W * S, H * S), (0, 159, 227), (29, 113, 184)).convert("RGBA")
+        _blob(g, (1180 * S, 120 * S), 360 * S, (255, 255, 255), 0.10)
+        _blob(g, (120 * S, 760 * S), 420 * S, (49, 39, 131), 0.22)
+        if mark_h:
+            mark = Image.open(BRAND / "mark-white.png").convert("RGBA")
+            mw = int(mark.width * mark_h * S / mark.height)
+            mark = mark.resize((mw, mark_h * S), Image.LANCZOS)
+            mark.putalpha(mark.getchannel("A").point(lambda v: int(v * 0.16)))
+            g.alpha_composite(mark, (mark_x * S, mark_y * S))
+        g.convert("RGB").save(BUILD / f"{name}.png")
+
+
+def framed_screen(name, crop=None):
+    """Скриншот кабинета в карточке: скругление radius-lg, рамка hairline, мягкая тень shadow-float."""
+    src = Image.open(SCREENS / f"{name}.png").convert("RGB")
+    if crop:
+        src = src.crop(crop)
+    w, h = src.size
+    r = 44                       # 22 px × 2 (скриншот в 2×)
+    pad = 80                     # место под тень
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], r, fill=255)
+    out = Image.new("RGBA", (w + pad * 2, h + pad * 2), (0, 0, 0, 0))
+    shadow = Image.new("RGBA", out.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle([pad, pad + 24, pad + w, pad + h + 24], r, fill=(14, 27, 46, 60))
+    out.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(36)))
+    card = src.convert("RGBA")
+    card.putalpha(mask)
+    out.alpha_composite(card, (pad, pad))
+    ImageDraw.Draw(out).rounded_rectangle([pad, pad, pad + w - 1, pad + h - 1], r, outline=(214, 224, 236, 255), width=2)
+    path = BUILD / f"screen-{name}.png"
+    out.save(path)
+    return path, pad, w
+
+
+def screen(slide, name, x, y, w):
+    """Ставит скриншот так, чтобы сама карточка (без поля тени) заняла x, y, w."""
+    path, pad, src_w = framed_screen(name)
+    k = w / src_w
+    return picture(slide, path, x - pad * k, y - pad * k, w=w + 2 * pad * k)
+
+
+# === Примитивы слайда ===
+
+def picture(slide, path, x, y, w=None, h=None):
+    im = Image.open(path)
+    if w and not h:
+        h = w * im.height / im.width
+    elif h and not w:
+        w = h * im.width / im.height
+    return slide.shapes.add_picture(str(path), px(x), px(y), px(w), px(h))
+
+
+def rect(slide, x, y, w, h, fill=None, line=None, radius=0, shape=None):
+    kind = shape or (MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE)
+    s = slide.shapes.add_shape(kind, px(x), px(y), px(w), px(h))
+    if radius and kind == MSO_SHAPE.ROUNDED_RECTANGLE:
+        s.adjustments[0] = min(0.5, radius / min(w, h))
     if fill is None:
-        shape.fill.background()
+        s.fill.background()
     else:
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = fill
+        s.fill.solid()
+        s.fill.fore_color.rgb = fill
     if line is None:
-        shape.line.fill.background()
+        s.line.fill.background()
     else:
-        shape.line.color.rgb = line
-        shape.line.width = Pt(1)
-    shape.shadow.inherit = False
-    return shape
+        s.line.color.rgb = line
+        s.line.width = Pt(0.75)
+    s.shadow.inherit = False
+    s.text_frame.text = ""
+    return s
 
 
-def add_text(slide, x, y, w, h, text, size=18, color=TEXT, bold=False,
-             align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, name=FONT):
-    """Добавляет текстовое поле."""
-    box = slide.shapes.add_textbox(x, y, w, h)
+def set_alpha(shape, alpha):
+    """Прозрачность заливки (python-pptx не умеет напрямую)."""
+    clr = shape.fill._xPr.find(qn("a:solidFill"))[0]
+    el = clr.makeelement(qn("a:alpha"), {"val": str(int(alpha * 100000))})
+    clr.append(el)
+
+
+def text(slide, x, y, w, h, runs, size=15, color=None, font=F_REG, bold=False, align=PP_ALIGN.LEFT,
+         anchor=MSO_ANCHOR.TOP, line=None, space_after=0, tracking=None):
+    """runs — строка или список абзацев; абзац — строка или список (текст, {font, color, bold, size})."""
+    box = slide.shapes.add_textbox(px(x), px(y), px(w), px(h))
     tf = box.text_frame
     tf.word_wrap = True
     tf.vertical_anchor = anchor
-    p = tf.paragraphs[0]
-    p.alignment = align
-    run = p.add_run()
-    run.text = text
-    set_font(run, size, color, bold, name)
+    tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
+    paras = runs if isinstance(runs, list) else [runs]
+    for i, para in enumerate(paras):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.alignment = align
+        if line:
+            p.line_spacing = fpx(line)
+        if space_after and i < len(paras) - 1:
+            p.space_after = fpx(space_after)
+        for chunk in (para if isinstance(para, list) else [(para, {})]):
+            t, o = chunk if isinstance(chunk, tuple) else (chunk, {})
+            r = p.add_run()
+            r.text = t
+            r.font.size = fpx(o.get("size", size))
+            r.font.name = o.get("font", font)
+            r.font.bold = o.get("bold", bold)
+            r.font.color.rgb = o.get("color", color or T["ink"])
+            if tracking is not None:
+                r.font._element.set("spc", str(int(tracking)))
     return box
 
 
-def add_paragraph(tf, text, size=18, color=TEXT, bold=False, align=PP_ALIGN.LEFT,
-                  space_after=8, bullet=False, name=FONT):
-    """Добавляет абзац в существующий text_frame."""
-    p = tf.add_paragraph()
-    p.alignment = align
-    p.space_after = Pt(space_after)
-    run = p.add_run()
-    run.text = text
-    set_font(run, size, color, bold, name)
-    return p
+def icon_tile(slide, x, y, name, size=44, tone="brand"):
+    """Плитка иконки tile-lg: подложка brand-tint, радиус radius-sm, иконка 24 px."""
+    fill = T["brand_tint"] if tone == "brand" else None
+    t = rect(slide, x, y, size, size, fill=fill, radius=12)
+    if tone == "glass":
+        t.fill.solid(); t.fill.fore_color.rgb = T["white"]; set_alpha(t, 0.18)
+    icon = size * 0.55
+    picture(slide, BRAND / f"icon-{name}-{'brand' if tone == 'brand' else 'white'}.png",
+            x + (size - icon) / 2, y + (size - icon) / 2, w=icon, h=icon)
+    return t
 
 
-def add_bullets(slide, x, y, w, h, items, size=18, color=TEXT, gap=10):
-    """Добавляет маркированный список."""
-    box = slide.shapes.add_textbox(x, y, w, h)
-    tf = box.text_frame
-    tf.word_wrap = True
-    for i, item in enumerate(items):
-        if i == 0:
-            p = tf.paragraphs[0]
-        else:
-            p = tf.add_paragraph()
-        p.space_after = Pt(gap)
-        # Маркер
-        run = p.add_run()
-        run.text = "•  "
-        set_font(run, size, ACCENT, True)
-        # Текст
-        run2 = p.add_run()
-        run2.text = item
-        set_font(run2, size, color)
-    return box
+def card(slide, x, y, w, h, fill=None):
+    return rect(slide, x, y, w, h, fill=fill or T["raised"], line=T["hairline"], radius=22)
 
 
-def add_slide_number(slide, num, total=10):
-    """Добавляет номер слайда в правый нижний угол."""
-    add_text(slide, SLIDE_W - Inches(1.2), SLIDE_H - Inches(0.6),
-             Inches(0.9), Inches(0.4), f"{num} / {total}",
-             size=12, color=MUTED, align=PP_ALIGN.RIGHT)
+def content_slide(prs, num, title, lead=None):
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    picture(s, BUILD / "bg-surface.png", 0, 0, W, H)
+    picture(s, BRAND / "lockup-color.png", M, 36, h=26)
+    text(s, W - M - 120, 40, 120, 20, f"{num:02d} / {TOTAL}", size=14, color=T["ink3"], font=F_MED,
+         align=PP_ALIGN.RIGHT, tracking=40)
+    text(s, M, 92, 1100, 52, title, size=40, font=F_BOLD, bold=True, line=48, tracking=-40)
+    if lead:
+        text(s, M, 148, 1000, 30, lead, size=20, color=T["ink2"], line=28)
+    text(s, M, H - 48, 300, 20, "press.my-dpr.ru", size=14, color=T["ink3"], font=F_MED)
+    return s
 
 
-def add_header(slide, title, subtitle=None):
-    """Добавляет заголовок слайда."""
-    add_text(slide, Inches(0.8), Inches(0.5), Inches(11.7), Inches(0.9),
-             title, size=34, color=TEXT, bold=True)
-    if subtitle:
-        add_text(slide, Inches(0.8), Inches(1.35), Inches(11.7), Inches(0.6),
-                 subtitle, size=16, color=MUTED)
+def bullet_list(slide, x, y, w, items, icon="check", gap=20, size=18, body_lines=1):
+    """Строки с иконкой в круге brand-tint — вместо маркеров-точек."""
+    cy = y
+    for item in items:
+        title, body = item if isinstance(item, tuple) else (item, None)
+        rect(slide, x, cy, 28, 28, fill=T["brand_tint"], shape=MSO_SHAPE.OVAL)
+        picture(slide, BRAND / f"icon-{icon}-brand.png", x + 6, cy + 6, w=16, h=16)
+        paras = [[(title, {"font": F_SEMI, "color": T["ink"]})]]
+        if body:
+            paras.append([(body, {"color": T["ink2"], "size": 16})])
+        hgt = 26 + (24 * body_lines if body else 0)
+        text(slide, x + 44, cy + 1, w - 44, hgt, paras, size=size, line=24, space_after=2)
+        cy += hgt + gap
+    return cy
 
 
-def add_footer_bar(slide):
-    """Добавляет нижнюю полосу с брендом."""
-    add_rect(slide, Inches(0), SLIDE_H - Inches(0.35), SLIDE_W, Inches(0.35),
-             fill=SURFACE_2)
-    add_text(slide, Inches(0.8), SLIDE_H - Inches(0.32), Inches(6), Inches(0.3),
-             "ИИ Пресс-секретарь · press.my-dpr.ru", size=11, color=MUTED)
+def pill(slide, x, y, w, label, fill, color, line=None, alpha=None, h=52):
+    b = rect(slide, x, y, w, h, fill=fill, line=line, radius=h / 2)
+    if alpha is not None:
+        set_alpha(b, alpha)
+    text(slide, x, y, w, h, label, size=18, font=F_SEMI, color=color, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+    return b
 
 
-def add_icon_circle(slide, x, y, size, emoji, bg=ACCENT):
-    """Добавляет круг с эмодзи."""
-    shape = slide.shapes.add_shape(MSO_SHAPE.OVAL, x, y, size, size)
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = bg
-    shape.line.fill.background()
-    shape.shadow.inherit = False
-    tf = shape.text_frame
-    tf.word_wrap = False
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    run = p.add_run()
-    run.text = emoji
-    run.font.size = Pt(int(int(size) / 12700 * 0.5))
-    return shape
-
-
-def add_image(slide, img_path, x, y, w=None, h=None):
-    """Добавляет изображение на слайд с сохранением пропорций."""
-    from PIL import Image
-    img = Image.open(img_path)
-    iw, ih = img.size
-    if w is None and h is None:
-        w = Inches(4)
-    if w is not None and h is None:
-        w_emu = int(w)
-        h = Emu(int(w_emu * ih / iw))
-    elif h is not None and w is None:
-        h_emu = int(h)
-        w = Emu(int(h_emu * iw / ih))
-    slide.shapes.add_picture(str(img_path), x, y, width=w, height=h)
-
+# === Слайды ===
 
 def build():
+    build_backgrounds()
     prs = Presentation()
-    prs.slide_width = SLIDE_W
-    prs.slide_height = SLIDE_H
-    blank = prs.slide_layouts[6]  # пустой макет
+    prs.slide_width, prs.slide_height = px(W), px(H)
+    blank = prs.slide_layouts[6]
 
-    # Пути к сгенерированным изображениям
-    img_dir = Path(__file__).resolve().parent / "presentation_images"
-    img_title = img_dir / "title_robot.png"
-    img_solution = img_dir / "solution.png"
-    img_media = img_dir / "media_brand.png"
-
-    # ============ СЛАЙД 1: Титульный ============
+    # 1. Обложка
     s = prs.slides.add_slide(blank)
-    add_bg(s)
-    # Изображение робота (сгенерировано через PiAPI)
-    if img_title.exists():
-        add_image(s, img_title, Inches(4.67), Inches(0.7), w=Inches(4.0))
-    else:
-        add_icon_circle(s, Inches(5.92), Inches(1.2), Inches(1.5), "🤖", ACCENT)
-    # Название
-    add_text(s, Inches(1.5), Inches(4.6), Inches(10.3), Inches(1.2),
-             "ИИ Пресс-секретарь", size=54, color=TEXT, bold=True,
-             align=PP_ALIGN.CENTER)
-    # Слоган
-    add_text(s, Inches(1.5), Inches(5.7), Inches(10.3), Inches(0.8),
-             "Умный контент для вашего бизнеса", size=26, color=ACCENT,
-             align=PP_ALIGN.CENTER)
-    # Описание
-    add_text(s, Inches(2.0), Inches(6.4), Inches(9.3), Inches(0.8),
-             "Сервис, который создаёт контент-план, генерирует посты и картинки "
-             "для вашего бизнеса и публикует их в Telegram — всё в одном месте.",
-             size=15, color=MUTED, align=PP_ALIGN.CENTER)
-    add_text(s, Inches(0.8), SLIDE_H - Inches(0.5), Inches(6), Inches(0.3),
-             "press.my-dpr.ru", size=12, color=MUTED)
+    picture(s, BUILD / "bg-cover.png", 0, 0, W, H)
+    picture(s, BRAND / "lockup-white.png", M, 48, h=32)
+    text(s, M, 196, 680, 20, "ПРЕЗЕНТАЦИЯ СЕРВИСА", size=14, font=F_SEMI, color=T["white"], tracking=160)
+    text(s, M, 228, 700, 230, "Пресс-секретарь, который говорит вашим голосом", size=68, font=F_BOLD, bold=True,
+         color=T["white"], line=72, tracking=-50)
+    text(s, M, 476, 640, 64, "Посты, картинки и контент-план по медиа-образу бренда. "
+         "Публикация в Telegram — в один клик.", size=22, color=T["white"], line=32)
+    pill(s, M, 584, 196, "press.my-dpr.ru", T["white"], T["white"], alpha=0.18, h=44)
 
-    # ============ СЛАЙД 2: Проблема ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "Ведение соцсетей отнимает слишком много времени")
-    add_footer_bar(s)
-    add_slide_number(s, 2)
+    # 2. Проблема
+    s = content_slide(prs, 2, "Соцсети отнимают слишком много времени",
+                      "Регулярный контент нужен каждому бизнесу, но на него не хватает рук.")
     problems = [
-        "Нужно регулярно публиковать контент, но нет времени и идей",
-        "Сложно придумывать посты каждый день",
-        "Дорого нанимать копирайтера и дизайнера",
-        "Трудно поддерживать единый стиль и медиа-образ",
-        "Публикация в Telegram вручную — рутина",
+        ("clock", "Нет времени", "Посты нужны каждый день, а у владельца бизнеса — десятки других задач."),
+        ("edit", "Нет идей", "Придумывать новый пост каждый день сложно даже профессионалу."),
+        ("users", "Дорогая команда", "Копирайтер и дизайнер в штате — расходы, которые малому бизнесу не по силам."),
+        ("persona", "Разный стиль", "Без медиа-образа посты каждый раз звучат по-разному."),
+        ("megaphone", "Ручная публикация", "Скопировать, вставить, приложить фото — рутина, которая съедает время."),
     ]
-    add_bullets(s, Inches(1.2), Inches(2.2), Inches(10.9), Inches(4.0),
-                problems, size=22, gap=18)
+    cw, gap = (W - 2 * M - 4 * 16) / 5, 16
+    for i, (ic, t, b) in enumerate(problems):
+        x = M + i * (cw + gap)
+        card(s, x, 232, cw, 312)
+        icon_tile(s, x + 24, 256, ic)
+        text(s, x + 24, 320, cw - 48, 56, t, size=22, font=F_SEMI, line=28)
+        text(s, x + 24, 384, cw - 48, 160, b, size=16, color=T["ink2"], line=24)
 
-    # ============ СЛАЙД 3: Решение ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "ИИ Пресс-секретарь решает эту задачу")
-    add_footer_bar(s)
-    add_slide_number(s, 3)
-    solutions = [
-        "ИИ берёт на себя генерацию контента: посты, картинки, контент-план",
-        "Всё в одном личном кабинете — без копирайтера и дизайнера",
-        "Контент подстраивается под ваш медиа-образ и стиль",
-        "Публикация в Telegram в один клик",
-        "Экономия времени и денег",
+    # 3. Решение
+    s = content_slide(prs, 3, "ИИ Пресс-секретарь берёт контент на себя",
+                      "Один кабинет вместо копирайтера, дизайнера и ручной публикации.")
+    bullet_list(s, M, 208, 470, [
+        ("Пишет посты", "Тексты для Telegram, Instagram, LinkedIn и TenChat."),
+        ("Рисует картинки", "Иллюстрации к постам по 12 шаблонам или по концепции."),
+        ("Планирует", "Контент-план на неделю или две — идея и платформа на каждый день."),
+        ("Говорит вашим голосом", "Каждый результат сделан по медиа-образу бренда."),
+        ("Публикует", "Пост уходит в ваш Telegram-канал по одной команде."),
+    ], gap=12, body_lines=2)
+    screen(s, "dashboard", 588, 208, 640)
+
+    # 4. Возможности
+    s = content_slide(prs, 4, "Всё для контента — в одном кабинете")
+    feats = [
+        ("sparkle", "Посты", "ИИ пишет пост по медиа-образу: платформа, стиль и пожелания — на ваш выбор. "
+         "Правки — командами в чате."),
+        ("image", "Картинки", "Иллюстрации без дизайнера и фотостока: 12 шаблонов, подбор концепции по тексту "
+         "поста или ваш образец."),
+        ("calendar", "Контент-план", "Идеи постов на каждый день. Из пункта плана — сразу в «Создать пост», "
+         "статусы показывают, что уже вышло."),
+        ("megaphone", "Публикация", "Подключите Telegram-каналы и публикуйте из кабинета. TenChat — тоже."),
     ]
-    add_bullets(s, Inches(0.8), Inches(2.2), Inches(6.5), Inches(4.0),
-                solutions, size=20, gap=16)
-    if img_solution.exists():
-        add_image(s, img_solution, Inches(7.6), Inches(2.0), w=Inches(5.0))
+    cw = (W - 2 * M - 3 * 16) / 4
+    for i, (ic, t, b) in enumerate(feats):
+        x = M + i * (cw + 16)
+        card(s, x, 184, cw, 344)
+        icon_tile(s, x + 28, 212, ic, size=52)
+        text(s, x + 28, 292, cw - 56, 32, t, size=24, font=F_SEMI, line=30)
+        text(s, x + 28, 336, cw - 56, 220, b, size=17, color=T["ink2"], line=25)
+    # Метка «ИИ»: голос ассистента — indigo
+    b = rect(s, M, 560, 680, 44, fill=T["indigo_tint"], radius=22)
+    text(s, M + 20, 560, 660, 44, [[("ИИ  ", {"font": F_BOLD, "bold": True, "color": T["indigo"]}),
+                                     ("пишет черновик — в канал пост уходит только по вашей команде", {"color": T["ink"]})]],
+         size=16, anchor=MSO_ANCHOR.MIDDLE)
 
-    # ============ СЛАЙД 4: Ключевые возможности ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "Всё, что нужно для контента — в одном сервисе")
-    add_footer_bar(s)
-    add_slide_number(s, 4)
-    features = [
-        ("✍️", "Генерация постов",
-         "ИИ пишет готовые тексты для вашего бизнеса с учётом вашего медиа-образа и стиля."),
-        ("🎨", "Генерация картинок",
-         "Создавайте иллюстрации к постам автоматически — без дизайнера и фотостока."),
-        ("📅", "Контент-план",
-         "Планируйте публикации на неделю вперёд и следите за выполнением плана."),
-        ("📣", "Публикация в Telegram",
-         "Публикуйте посты в свои каналы прямо из личного кабинета."),
-    ]
-    card_w = Inches(2.85)
-    card_h = Inches(3.6)
-    gap_x = Inches(0.25)
-    start_x = Inches(0.8)
-    y = Inches(2.2)
-    for i, (emoji, title, desc) in enumerate(features):
-        x = start_x + i * (card_w + gap_x)
-        card = add_rect(s, x, y, card_w, card_h, fill=SURFACE, line=BORDER, radius=True)
-        # Иконка
-        add_icon_circle(s, x + Inches(0.9), y + Inches(0.4), Inches(1.0), emoji, ACCENT)
-        # Заголовок
-        add_text(s, x + Inches(0.3), y + Inches(1.6), card_w - Inches(0.6), Inches(0.7),
-                 title, size=18, color=TEXT, bold=True, align=PP_ALIGN.CENTER)
-        # Описание
-        add_text(s, x + Inches(0.3), y + Inches(2.3), card_w - Inches(0.6), Inches(1.2),
-                 desc, size=13, color=MUTED, align=PP_ALIGN.CENTER)
+    # 5. Медиа-образ
+    s = content_slide(prs, 5, "Медиа-образ — голос вашего бренда",
+                      "Анкета, по которой ИИ пишет каждый пост: тон, УТП, аудитория, позиционирование.")
+    bullet_list(s, M, 208, 480, [
+        ("Три типа", "Личный бренд, компания или сообщество — у каждого свои вопросы."),
+        ("Анкета на 12 шагов", "2–4 поля на шаг, ничего лишнего."),
+        ("Автозаполнение", "Дайте ссылку на Telegram-канал — ИИ прочитает посты и заполнит анкету."),
+        ("Импорт и экспорт", "Загрузка из .json и .docx, бренд-бук — в .docx."),
+    ], icon="persona", gap=16, body_lines=2)
+    screen(s, "generate", 588, 208, 640)
 
-    # ============ СЛАЙД 5: Медиа-образ ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "Уникальный медиа-образ вашего бренда")
-    add_footer_bar(s)
-    add_slide_number(s, 5)
-    media_items = [
-        "Заполните опрос о своём бизнесе — ИИ изучит ваш стиль, миссию, ценности и целевую аудиторию",
-        "Сервис формирует медиа-образ (бренд-бук) вашей организации",
-        "Все посты генерируются в едином стиле, соответствующем вашему бренду",
-        "Поддержка 9 видов бизнеса и различных форматов",
-        "Импорт данных из существующих каналов: Telegram, VK, Tenchat, Instagram",
-    ]
-    add_bullets(s, Inches(0.8), Inches(2.2), Inches(6.5), Inches(4.0),
-                media_items, size=18, gap=14)
-    if img_media.exists():
-        add_image(s, img_media, Inches(7.6), Inches(2.0), w=Inches(5.0))
-
-    # ============ СЛАЙД 6: Как это работает ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "Просто начните — 4 шага")
-    add_footer_bar(s)
-    add_slide_number(s, 6)
+    # 6. Как это работает
+    s = content_slide(prs, 6, "Четыре шага до первого поста")
     steps = [
-        ("1", "Зарегистрируйтесь",
-         "Создайте аккаунт в личном кабинете за пару минут."),
-        ("2", "Опишите медиа-образ",
-         "Расскажите о своём бизнесе — ИИ подстроится под ваш стиль."),
-        ("3", "Генерируйте контент",
-         "Создавайте посты, картинки и контент-план автоматически."),
-        ("4", "Публикуйте",
-         "Отправляйте готовые посты в свои Telegram-каналы."),
+        ("Зарегистрируйтесь", "Аккаунт создаётся за минуту — нужны только имя, почта и пароль."),
+        ("Заполните медиа-образ", "Расскажите о бизнесе или дайте ссылку на канал — ИИ заполнит анкету."),
+        ("Сгенерируйте пост", "Выберите платформу и стиль, доработайте текст командами в чате."),
+        ("Опубликуйте", "Отправьте пост в свой Telegram-канал одной кнопкой."),
     ]
-    step_w = Inches(2.85)
-    step_h = Inches(3.6)
-    gap_x = Inches(0.25)
-    start_x = Inches(0.8)
-    y = Inches(2.2)
-    for i, (num, title, desc) in enumerate(steps):
-        x = start_x + i * (step_w + gap_x)
-        card = add_rect(s, x, y, step_w, step_h, fill=SURFACE, line=BORDER, radius=True)
-        # Номер
-        circle = add_rect(s, x + Inches(1.1), y + Inches(0.4), Inches(0.7), Inches(0.7),
-                          fill=ACCENT, radius=True)
-        tf = circle.text_frame
-        tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-        p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.CENTER
-        run = p.add_run()
-        run.text = num
-        set_font(run, 22, WHITE, True)
-        # Заголовок
-        add_text(s, x + Inches(0.3), y + Inches(1.4), step_w - Inches(0.6), Inches(0.7),
-                 title, size=18, color=TEXT, bold=True, align=PP_ALIGN.CENTER)
-        # Описание
-        add_text(s, x + Inches(0.3), y + Inches(2.1), step_w - Inches(0.6), Inches(1.3),
-                 desc, size=13, color=MUTED, align=PP_ALIGN.CENTER)
+    cw = (W - 2 * M - 3 * 16) / 4
+    rect(s, M + 60, 239, W - 2 * M - 120, 2, fill=T["hairline"])   # линия связи шагов
+    for i, (t, b) in enumerate(steps):
+        x = M + i * (cw + 16)
+        n = rect(s, x + 24, 216, 48, 48, fill=T["brand"], shape=MSO_SHAPE.OVAL)
+        text(s, x + 24, 216, 48, 48, str(i + 1), size=20, font=F_BOLD, bold=True, color=T["white"],
+             align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+        card(s, x, 288, cw, 232)
+        text(s, x + 24, 312, cw - 48, 60, t, size=22, font=F_SEMI, line=28)
+        text(s, x + 24, 380, cw - 48, 160, b, size=17, color=T["ink2"], line=25)
 
-    # ============ СЛАЙД 7: Дополнительные возможности ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "Больше, чем генерация постов")
-    add_footer_bar(s)
-    add_slide_number(s, 7)
-    extra = [
-        "🤖 Чат с ИИ для редактирования и доработки постов",
-        "📊 Статистика и аналитика публикаций",
-        "🔗 Подключение нескольких Telegram-каналов",
-        "🖼️ Медиа-библиотека и история постов",
-        "📱 Адаптивный дизайн — работайте с телефона, планшета или компьютера",
-        "📄 Экспорт бренд-бука в документ (DOCX)",
+    # 7. Больше, чем генерация
+    s = content_slide(prs, 7, "Больше, чем генерация постов")
+    screen(s, "post", M, 184, 640)
+    items = [
+        ("chat", "Чат правок", "«Сократи вдвое», «Сделай официальнее» — за секунды."),
+        ("refresh", "История версий", "Любую прошлую версию можно вернуть."),
+        ("link", "Несколько каналов", "Подключайте каналы и чаты Telegram."),
+        ("image", "Библиотека картинок", "Все сгенерированные и загруженные фото."),
+        ("chart", "Статистика", "Посты, картинки и публикации за всё время."),
+        ("download", "Бренд-бук в .docx", "Медиа-образ — готовым документом."),
     ]
-    add_bullets(s, Inches(1.2), Inches(2.2), Inches(10.9), Inches(4.0),
-                extra, size=20, gap=14)
+    y = 184
+    for ic, t, b in items:
+        icon_tile(s, 752, y + 2, ic, size=44)
+        text(s, 812, y - 2, 404, 56, [[(t, {"font": F_SEMI})], [(b, {"color": T["ink2"], "size": 15})]],
+             size=19, line=24)
+        y += 72
 
-    # ============ СЛАЙД 8: Для кого ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "Кому подойдёт сервис")
-    add_footer_bar(s)
-    add_slide_number(s, 8)
-    audience = [
-        "Предпринимателям и владельцам бизнеса",
-        "Руководителям организаций и сообществ",
-        "Маркетологам и SMM-специалистам",
-        "Блогерам и экспертам, ведущим Telegram-каналы",
-        "Тем, кто хочет экономить время на контенте",
+    # 8. Для кого
+    s = content_slide(prs, 8, "Кому подойдёт сервис")
+    aud = [
+        ("building", "Малому бизнесу", "Кафе, салоны, сервисы и магазины — регулярные посты без SMM-отдела."),
+        ("user", "Экспертам и личным брендам", "Юристы, врачи, тренеры пишут о своём деле своим голосом."),
+        ("users", "Сообществам и НКО", "Волонтёрские центры, музеи, школы — анонсы и отчёты."),
+        ("megaphone", "SMM-специалистам", "Несколько медиа-образов и каналов в одном кабинете."),
+        ("news", "Руководителям организаций", "Новости организации без отдельного пресс-секретаря."),
     ]
-    add_bullets(s, Inches(1.2), Inches(2.2), Inches(10.9), Inches(4.0),
-                audience, size=22, gap=18)
+    cw, ch = (W - 2 * M - 16) / 2, 96
+    for i, (ic, t, b) in enumerate(aud):
+        col, row = i % 2, i // 2
+        x, y = M + col * (cw + 16), 184 + row * (ch + 16)
+        card(s, x, y, cw, ch)
+        icon_tile(s, x + 24, y + 26, ic)
+        text(s, x + 88, y + 20, cw - 112, 60, [[(t, {"font": F_SEMI, "size": 21})], [(b, {"color": T["ink2"]})]],
+             size=16, line=24)
+    # Пятая карточка — с примером, чтобы сетка 2×3 была полной
+    x, y = M + cw + 16, 184 + 2 * (ch + 16)
+    c = card(s, x, y, cw, ch, fill=T["brand_tint"])
+    c.line.fill.background()
+    text(s, x + 24, y + 20, cw - 48, 60, [[("И всем, кому есть что рассказать", {"font": F_SEMI, "color": T["brand"], "size": 21})],
+                                          [("Анкета подстраивается под тип: личный бренд, компания или сообщество.", {"color": T["ink"]})]],
+         size=16, line=24)
 
-    # ============ СЛАЙД 9: Преимущества ============
-    s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_header(s, "Почему выбирают ИИ Пресс-секретарь")
-    add_footer_bar(s)
-    add_slide_number(s, 9)
-    advantages = [
-        "⏱️ Экономия времени — контент создаётся за минуты",
-        "💰 Экономия бюджета — не нужны копирайтер и дизайнер",
-        "🎯 Единый стиль — контент соответствует вашему бренду",
-        "📈 Регулярность — контент-план помогает публиковать системно",
-        "🔒 Безопасность — данные и аккаунт защищены",
+    # 9. Преимущества
+    s = content_slide(prs, 9, "Почему выбирают ИИ Пресс-секретарь")
+    adv = [
+        ("clock", "Экономия времени", "Пост и контент-план — за минуты, а не за часы."),
+        ("key", "Экономия бюджета", "Не нужны копирайтер и дизайнер в штате."),
+        ("persona", "Единый стиль", "Каждый пост звучит голосом вашего медиа-образа."),
+        ("calendar", "Регулярность", "Контент-план помогает публиковать системно."),
+        ("check", "Всё под контролем", "ИИ пишет черновик, публикуете вы."),
     ]
-    add_bullets(s, Inches(1.2), Inches(2.2), Inches(10.9), Inches(4.0),
-                advantages, size=22, gap=18)
+    y = 184
+    for ic, t, b in adv:
+        card(s, M, y, 520, 80)
+        icon_tile(s, M + 18, y + 18, ic)
+        text(s, M + 80, y + 14, 420, 56, [[(t, {"font": F_SEMI, "size": 20})], [(b, {"color": T["ink2"]})]],
+             size=16, line=24)
+        y += 88
+    screen(s, "plan", 620, 184, 596)
 
-    # ============ СЛАЙД 10: Призыв к действию ============
+    # 10. Призыв
     s = prs.slides.add_slide(blank)
-    add_bg(s)
-    add_icon_circle(s, Inches(6.17), Inches(1.2), Inches(1.0), "🚀", ACCENT)
-    add_text(s, Inches(1.5), Inches(2.6), Inches(10.3), Inches(1.0),
-             "Готовы начать?", size=44, color=TEXT, bold=True,
-             align=PP_ALIGN.CENTER)
-    add_text(s, Inches(1.5), Inches(3.6), Inches(10.3), Inches(0.7),
-             "Зарегистрируйтесь и получите доступ к личному кабинету.",
-             size=18, color=MUTED, align=PP_ALIGN.CENTER)
-    # Кнопка регистрации
-    btn1 = add_rect(s, Inches(4.17), Inches(4.6), Inches(2.5), Inches(0.65),
-                    fill=ACCENT, radius=True)
-    tf = btn1.text_frame
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    run = p.add_run()
-    run.text = "Зарегистрироваться"
-    set_font(run, 16, WHITE, True)
-    # Кнопка входа
-    btn2 = add_rect(s, Inches(6.87), Inches(4.6), Inches(2.3), Inches(0.65),
-                    fill=SURFACE, line=ACCENT, radius=True)
-    tf = btn2.text_frame
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    run = p.add_run()
-    run.text = "Войти в кабинет"
-    set_font(run, 16, ACCENT, True)
-    # Ссылка на сайт
-    add_text(s, Inches(1.5), Inches(5.6), Inches(10.3), Inches(0.5),
-             "press.my-dpr.ru", size=16, color=ACCENT, align=PP_ALIGN.CENTER)
+    picture(s, BUILD / "bg-cta.png", 0, 0, W, H)
+    picture(s, BRAND / "mark-white.png", (W - 104) / 2, 136, w=104)
+    text(s, 120, 260, W - 240, 72, "Начните с медиа-образа", size=64, font=F_BOLD, bold=True, color=T["white"],
+         align=PP_ALIGN.CENTER, line=70, tracking=-40)
+    text(s, 200, 344, W - 400, 64, "Зарегистрируйтесь, заполните анкету — и первый пост появится в кабинете.",
+         size=22, color=T["white"], align=PP_ALIGN.CENTER, line=32)
+    pill(s, W / 2 - 236, 432, 228, "Зарегистрироваться", T["white"], T["logo_deep"])
+    pill(s, W / 2 + 8, 432, 228, "Войти в кабинет", T["white"], T["white"], alpha=0.18)
+    text(s, 0, 520, W, 28, "press.my-dpr.ru", size=20, font=F_SEMI, color=T["white"], align=PP_ALIGN.CENTER)
+    picture(s, BRAND / "lockup-white.png", (W - 200) / 2, H - 72, w=200)
 
-    # Сохранение
-    out_path = Path(__file__).resolve().parent.parent / "ИИ_Пресс-секретарь_презентация.pptx"
-    prs.save(out_path)
-    print(f"✅ Презентация сохранена: {out_path}")
+    prs.save(OUT)
+    print(f"Презентация сохранена: {OUT}")
 
 
 if __name__ == "__main__":

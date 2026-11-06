@@ -1,18 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Изменить пост — Личный кабинет{% endblock %}
+{% block title %}Изменить пост{% endblock %}
 {% block content %}
-<h1>Изменить пост</h1>
-<div class="card">
-    <p class="post-meta">{{ platform_label(post.platform) }} · {{ post.created_at }}</p>
-    <form method="post" action="/posts/{{ post.id }}/edit" class="form">
-        <label>Текст поста
-            <textarea name="content" rows="12" required>{{ post.content }}</textarea>
-        </label>
-        <div class="form-actions">
-            <button type="submit">💾 Сохранить</button>
-            <a class="button-link" href="/posts/{{ post.id }}">Отмена</a>
-        </div>
-    </form>
+<div class="ps-main-head">
+    <div>
+        <a href="/posts/{{ post.id }}" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">К посту</span></a>
+        <h1 class="ps-h1">Изменить пост</h1>
+        <p class="ps-lead">{{ platform_label(post.platform) }} · {{ post.created_at|local_dt }}</p>
+    </div>
 </div>
-<p><a href="/history">← Назад к истории</a></p>
+<form method="post" action="/posts/{{ post.id }}/edit" class="ps-panel app-form">
+    <div class="ps-field">
+        <div class="ps-field-top">
+            <label for="content" class="ps-field-label">Текст поста</label>
+            <span class="ps-field-count" id="len">{{ post.content|length }} зн.</span>
+        </div>
+        <textarea id="content" name="content" rows="14" class="ps-field-control" style="font-size:16px; line-height:25px" required>{{ post.content }}</textarea>
+    </div>
+    <div class="app-actions">
+        <button type="submit" class="ps-btn ps-btn--primary">{{ ui.icon('check', 20) }}<span class="ps-btn-label">Сохранить</span></button>
+        <a class="ps-btn ps-btn--quiet" href="/posts/{{ post.id }}"><span class="ps-btn-label">Отмена</span></a>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('content').addEventListener('input', function () {
+    document.getElementById('len').textContent = this.value.length.toLocaleString('ru-RU') + ' зн.';
+});
+</script>
 {% endblock %}

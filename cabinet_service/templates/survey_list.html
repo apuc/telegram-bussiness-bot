@@ -1,35 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Медиа-образы — Личный кабинет{% endblock %}
+{% block title %}Медиа-образы{% endblock %}
 {% block content %}
-<h1>Медиа-образы</h1>
-<div class="post-actions" style="margin-bottom:15px">
-  <a class="tile" href="/survey">➕ Создать новый</a>
-  <a class="tile" href="/survey/import">📤 Загрузить из файла</a>
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Медиа-образы</h1>
+        <p class="ps-lead">Анкета бренда, личности или сообщества. По ней ИИ пишет посты вашим голосом.</p>
+    </div>
+    <div class="app-head-actions">
+        <a href="/survey/import" class="ps-btn ps-btn--secondary">{{ ui.icon('upload', 20) }}<span class="ps-btn-label">Загрузить из файла</span></a>
+        <a href="/survey" class="ps-btn ps-btn--primary">{{ ui.icon('plus', 20) }}<span class="ps-btn-label">Создать медиа-образ</span></a>
+    </div>
 </div>
 
 {% if surveys %}
-<table class="table">
-  <thead>
-    <tr><th>Название</th><th>Дата</th><th></th></tr>
-  </thead>
-  <tbody>
+<div class="ps-grid-3">
     {% for s in surveys %}
-    <tr>
-      <td><a href="/surveys/{{ s.id }}">{{ s.title }}</a></td>
-      <td>{{ s.created_at }}</td>
-      <td>
-        <a href="/surveys/{{ s.id }}/export" class="button-link">📄 .docx</a>
-        <form action="/surveys/{{ s.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Удалить медиа-образ?')">
-          <button type="submit" class="button-link button-link-danger">🗑</button>
-        </form>
-      </td>
-    </tr>
+    {%- set active = loop.first -%}
+    <article class="ps-persona{% if active %} is-active{% endif %}">
+        <div class="ps-persona-top">
+            <span class="ps-persona-icon" aria-hidden="true">{{ ui.icon('persona', 22) }}</span>
+            <span class="ps-persona-type">Создан {{ s.created_at|local_dt('%d.%m.%Y') }}</span>
+            {% if active %}<span class="ps-badge ps-badge--brand">{{ ui.icon('check', 14) }}<span>Активный</span></span>{% endif %}
+        </div>
+        <h3 class="ps-persona-name">{{ s.title }}</h3>
+        {% if active %}<p class="ps-persona-sum">По нему сейчас генерируются посты и контент-план.</p>{% endif %}
+        <div class="ps-persona-actions">
+            <a href="/surveys/{{ s.id }}" class="ps-btn ps-btn--quiet ps-btn--sm">{{ ui.icon('edit', 16) }}<span class="ps-btn-label">Анкета</span></a>
+            <a href="/surveys/{{ s.id }}/export" class="ps-btn ps-btn--quiet ps-btn--sm">{{ ui.icon('download', 16) }}<span class="ps-btn-label">Экспорт .docx</span></a>
+            <form action="/surveys/{{ s.id }}/delete" method="post" class="inline-form" data-confirm="Удалить медиа-образ?" data-confirm-body="{{ s.title }} — анкета удалится, вернуть её будет нельзя.">
+                <button type="submit" class="ps-iconbtn" aria-label="Удалить медиа-образ {{ s.title }}">{{ ui.icon('trash', 20) }}</button>
+            </form>
+        </div>
+    </article>
     {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<div class="card">
-  <p>Пока нет ни одного медиа-образа. <a href="/survey">Создайте первый →</a></p>
 </div>
+{% else %}
+<section class="ps-panel">
+    <div class="ps-empty">
+        <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('persona', 28) }}</span>
+        <h2 class="ps-empty-title">Начните с медиа-образа</h2>
+        <p class="ps-empty-text">12 коротких шагов: кто вы, чем полезны, как говорите. Можно заполнить автоматически по ссылке на канал.</p>
+        <a href="/survey" class="ps-btn ps-btn--primary">{{ ui.icon('plus', 20) }}<span class="ps-btn-label">Создать медиа-образ</span></a>
+    </div>
+</section>
 {% endif %}
 {% endblock %}

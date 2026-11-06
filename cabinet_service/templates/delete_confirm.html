@@ -1,11 +1,29 @@
 {% extends "base.html" %}
-{% block title %}Удаление аккаунта — Личный кабинет{% endblock %}
+{% block title %}Удаление аккаунта{% endblock %}
 {% block content %}
-<h1>Удалить аккаунт?</h1>
-<p>Это безвозвратно удалит твой профиль и всю историю постов.</p>
-<form method="post" action="/delete-account" class="form">
-    <input type="hidden" name="confirm" value="yes">
-    <button type="submit" class="button-danger">Да, удалить аккаунт</button>
-</form>
-<p><a href="/dashboard">Отмена, вернуться в кабинет</a></p>
+<section class="ps-panel" style="max-width: 560px; width: 100%; justify-self: center; margin-top: var(--space-8)">
+    <div class="ps-empty" style="padding-bottom: var(--space-4)">
+        <span class="ps-empty-icon" aria-hidden="true" style="background: var(--danger-tint); color: var(--danger)">{{ ui.icon('alert', 28) }}</span>
+        <h1 class="ps-empty-title">Удалить аккаунт?</h1>
+        <p class="ps-empty-text">Удалятся профиль, все посты, картинки, медиа-образы и контент-план. Вернуть их будет нельзя.</p>
+    </div>
+    <form method="post" action="/delete-account" class="app-form" id="deleteForm">
+        <input type="hidden" name="confirm" value="yes">
+        <div class="ps-field">
+            <label for="word" class="ps-field-label">Чтобы подтвердить, введите слово «удалить»</label>
+            <input id="word" class="ps-field-control" type="text" autocomplete="off" required>
+        </div>
+        <div class="app-actions">
+            <button type="submit" class="ps-btn ps-btn--danger" id="deleteBtn" disabled>{{ ui.icon('trash', 20) }}<span class="ps-btn-label">Удалить аккаунт</span></button>
+            <a href="/profile/edit" class="ps-btn ps-btn--quiet"><span class="ps-btn-label">Оставить</span></a>
+        </div>
+    </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('word').addEventListener('input', function () {
+    document.getElementById('deleteBtn').disabled = this.value.trim().toLowerCase() !== 'удалить';
+});
+</script>
 {% endblock %}

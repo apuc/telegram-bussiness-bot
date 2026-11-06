@@ -3,6 +3,8 @@ import struct
 
 import requests
 
+from ai_core.net_safety import public_url_error
+
 from config import PIAPI_API_KEY, PIAPI_IMAGE_MODEL, get_proxies
 
 PIAPI_IMAGE_URL = "https://api.piapi.ai/v1/images/generations"
@@ -253,7 +255,11 @@ class ImageGenerator:
         if item.get("b64_json"):
             return base64.b64decode(item["b64_json"])
         if item.get("url"):
-            img_response = requests.get(item["url"], proxies=self.proxies, timeout=120)
+            # Ссылку прислал провайдер (возможно, «свой») — скачиваем только из публичного интернета, без редиректов
+            url_error = public_url_error(item["url"], allow_http=True)
+            if url_error:
+                raise RuntimeError(f"Провайдер вернул недопустимую ссылку на картинку: {url_error}")
+            img_response = requests.get(item["url"], proxies=self.proxies, timeout=120, allow_redirects=False)
             img_response.raise_for_status()
             return img_response.content
 

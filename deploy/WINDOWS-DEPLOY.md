@@ -41,7 +41,7 @@ cd C:\python\pressa\deploy
 Доступные параметры:
 - `-ServerIP` — IP сервера
 - `-Username` — логин (по умолчанию root)
-- `-Password` — пароль
+- Вход только по SSH-ключу: `ssh-copy-id root@сервер` один раз, пароль в скриптах не хранится
 - `-Domain` — домен
 - `-RemotePath` — путь на сервере (по умолчанию /opt/pressa)
 - `-LocalProjectPath` — путь к проекту на компьютере

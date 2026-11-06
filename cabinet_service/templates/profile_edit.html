@@ -1,32 +1,74 @@
 {% extends "base.html" %}
-{% block title %}Профиль — Личный кабинет{% endblock %}
+{% block title %}Профиль{% endblock %}
 {% block content %}
-<h1>Редактировать профиль</h1>
-<form method="post" action="/profile/edit" class="form">
-    <label>Имя
-        <input type="text" name="name" value="{{ user.name }}" required>
-    </label>
-    <label>Телефон
-        <input type="text" name="phone" value="{{ user.phone }}" required>
-    </label>
-    <button type="submit">Сохранить</button>
-</form>
-
-<div class="card">
-    <h2>Провайдер ИИ</h2>
-    {% if provider %}
-    <p><strong>Текущий:</strong> {{ provider_presets[provider.provider_type].name if provider.provider_type in provider_presets else provider.provider_type }}</p>
-    {% else %}
-    <p>Используются глобальные настройки (PiAPI).</p>
-    {% endif %}
-    <a href="/provider" class="copy-btn">⚙ Настроить провайдера</a>
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Профиль</h1>
+        <p class="ps-lead">{{ user.email }}</p>
+    </div>
 </div>
 
-<div class="card">
-    <h2>TenChat</h2>
-    <p>Подключите аккаунт TenChat, чтобы публиковать посты автоматически.</p>
-    <a href="/tenchat" class="copy-btn">🔑 Настроить TenChat</a>
+<div class="ps-grid-2">
+    <form method="post" action="/profile/edit" class="ps-panel app-form">
+        <h2 class="ps-h2">Личные данные</h2>
+        <div class="ps-field">
+            <label for="name" class="ps-field-label">Имя</label>
+            <input id="name" class="ps-field-control" type="text" name="name" autocomplete="name" value="{{ user.name }}" required>
+        </div>
+        <div class="ps-field">
+            <label for="phone" class="ps-field-label">Телефон</label>
+            <input id="phone" class="ps-field-control" type="tel" name="phone" autocomplete="tel" value="{{ user.phone }}" required>
+        </div>
+        <div class="ps-field">
+            <label for="email" class="ps-field-label">Email</label>
+            <input id="email" class="ps-field-control" type="email" value="{{ user.email }}" disabled aria-describedby="email-hint">
+            <p id="email-hint" class="ps-field-hint"><span>Email — это логин, его нельзя изменить.</span></p>
+        </div>
+        <div class="app-actions">
+            <button type="submit" class="ps-btn ps-btn--primary">{{ ui.icon('check', 20) }}<span class="ps-btn-label">Сохранить</span></button>
+        </div>
+    </form>
+
+    <div class="app-stack-lg">
+        <section class="ps-panel">
+            <div class="ps-provider-head">
+                <span class="ps-provider-icon" aria-hidden="true">{{ ui.icon('cpu', 22) }}</span>
+                <span class="ps-provider-text">
+                    <h2 class="ps-provider-title">ИИ-провайдер</h2>
+                    <span class="ps-provider-desc">
+                    {%- if provider -%}
+                    {%- set tp = provider.text_provider_type -%}{%- set ip = provider.image_provider_type -%}
+                    Текст — {{ provider_presets[tp].name if tp in provider_presets else (tp or 'глобальные настройки') }}{% if not provider.text_api_key %} (глобальный ключ){% endif %},
+                    картинки — {{ provider_presets[ip].name if ip in provider_presets else (ip or 'глобальные настройки') }}{% if not provider.image_api_key %} (глобальный ключ){% endif %}
+                    {%- else -%}Глобальные настройки сервиса (PiAPI){%- endif -%}
+                    </span>
+                </span>
+            </div>
+            <div class="app-actions"><a href="/provider" class="ps-btn ps-btn--secondary ps-btn--sm">{{ ui.icon('settings', 16) }}<span class="ps-btn-label">Настроить</span></a></div>
+        </section>
+        <section class="ps-panel">
+            <div class="ps-provider-head">
+                <span class="ps-provider-icon" aria-hidden="true">{{ ui.icon('users', 22) }}</span>
+                <span class="ps-provider-text">
+                    <h2 class="ps-provider-title">TenChat</h2>
+                    <span class="ps-provider-desc">Публикация постов в профиль TenChat</span>
+                </span>
+            </div>
+            <div class="app-actions"><a href="/tenchat" class="ps-btn ps-btn--secondary ps-btn--sm">{{ ui.icon('key', 16) }}<span class="ps-btn-label">Подключить</span></a></div>
+        </section>
+        <section class="ps-panel">
+            <div class="app-actions">
+                <form action="/logout" method="post" class="inline-form">
+                    <button type="submit" class="ps-btn ps-btn--quiet">{{ ui.icon('logout', 20) }}<span class="ps-btn-label">Выйти</span></button>
+                </form>
+            </div>
+        </section>
+    </div>
 </div>
 
-<p><a href="/dashboard">← Назад в кабинет</a></p>
+<section class="ps-panel">
+    <h2 class="ps-h2">Удаление аккаунта</h2>
+    <p class="app-muted" style="margin:0">Удалятся профиль, посты, картинки, медиа-образы и контент-план. Вернуть их будет нельзя.</p>
+    <div class="app-actions"><a href="/delete-account" class="ps-btn ps-btn--danger">{{ ui.icon('trash', 20) }}<span class="ps-btn-label">Удалить аккаунт</span></a></div>
+</section>
 {% endblock %}

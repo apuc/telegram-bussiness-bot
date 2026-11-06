@@ -1,100 +1,200 @@
 {% extends "base.html" %}
-{% block title %}Сгенерировать пост — Личный кабинет{% endblock %}
+{% block title %}Создать пост{% endblock %}
 {% block content %}
-<h1>Пост в своём стиле</h1>
+{%- set platform_meta = {
+    'telegram': ('send', 'До 4 096 знаков', 4096),
+    'instagram': ('image', 'Подпись до 2 200 знаков', 2200),
+    'linkedin': ('building', 'До 3 000 знаков', 3000),
+    'twitter': ('chat', 'До 280 знаков', 280),
+    'tenchat': ('users', 'Деловая соцсеть', 4096),
+    'ad': ('megaphone', 'Короткий продающий текст', 4096),
+} -%}
+{%- set styles = [('экспертный', 'Экспертный'), ('вовлекающий', 'Вовлекающий'), ('личный', 'Личный'), ('продающий', 'Продающий')] -%}
+{%- set cur_platform = (prefill.platform if prefill and prefill.platform else (form.platform if form else 'telegram')) -%}
+{%- if cur_platform not in (platforms | map('first') | list) %}{% set cur_platform = 'telegram' %}{% endif -%}
+{%- set cur_style = form.style if form and form.style else 'экспертный' -%}
+{%- set style_known = cur_style in styles | map('first') | list -%}
 
-{% if latest_survey %}
-<div class="card">
-    <p><strong>Медиа-образ:</strong> <a href="/surveys/{{ latest_survey.id }}">{{ latest_survey.title }}</a></p>
-    <p class="form-hint">Пост сгенерируется на основе этого медиа-образа (личность, УТП, Tone of Voice, структура мысли).</p>
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Создать пост</h1>
+        <p class="ps-lead">{% if latest_survey %}Медиа-образ: {{ latest_survey.title }}.{% else %}Посты пишутся по медиа-образу — сначала создайте его.{% endif %}</p>
+    </div>
 </div>
-{% else %}
-<div class="card">
-    <p>⚠️ Медиа-образ не найден. Посты генерируются на основе медиа-образа.</p>
-    <a href="/survey" class="copy-btn">➕ Создать медиа-образ</a>
+
+{% if prefill and prefill.idea %}
+<div class="app-alert app-alert--info" role="status">
+    <span class="app-alert-icon">{{ ui.icon('calendar', 18) }}</span>
+    <ul><li>Идея и платформа из контент-плана уже подставлены.</li></ul>
 </div>
 {% endif %}
 
-<div id="taskError" class="task-error"></div>
+<div class="ps-split ps-split--start" style="--ps-aside: 380px">
+    <section class="ps-panel" id="taskForm" aria-labelledby="params-title">
+        <h2 class="ps-h2" id="params-title">Параметры</h2>
+        <form method="post" action="/generate" class="app-form" id="generateForm" onsubmit="return startPostGen(event)">
+            {% if surveys and surveys|length > 1 %}
+            <div class="ps-field">
+                <label for="survey_id" class="ps-field-label">Медиа-образ</label>
+                <div class="ps-select">
+                    <select id="survey_id" name="survey_id" class="ps-field-control ps-select-control">
+                        <option value="">Последний — {{ latest_survey.title if latest_survey else '' }}</option>
+                        {% for s in surveys %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}
+                    </select>
+                    {{ ui.icon('chevron-down', 18, 'ps-select-chev') }}
+                </div>
+            </div>
+            {% endif %}
 
-<div id="taskLoader" class="task-loader">
-    <div class="spinner"></div>
-    <div class="task-loader-text">Генерирую пост...</div>
-    <div class="task-loader-sub">Это может занять 15–60 секунд</div>
-</div>
+            <div class="ps-choices">
+                <span class="ps-field-label" id="platform-label">Платформа</span>
+                <input type="hidden" name="platform" id="platformInput" value="{{ cur_platform }}">
+                <div class="ps-choices-grid is-compact" role="radiogroup" aria-labelledby="platform-label" data-input="platformInput">
+                    {% for key, label in platforms %}
+                    {%- set m = platform_meta.get(key, ('news', '', 4096)) -%}
+                    {%- set sel = key == cur_platform -%}
+                    <button type="button" role="radio" class="ps-choice{% if sel %} is-selected{% endif %}" aria-checked="{{ 'true' if sel else 'false' }}" tabindex="{{ 0 if sel else -1 }}" data-value="{{ key }}" data-limit="{{ m[2] }}" data-icon="{{ m[0] }}">
+                        <span class="ps-choice-body">
+                            <span class="ps-choice-icon" aria-hidden="true">{{ ui.icon(m[0], 16) }}</span>
+                            <span class="ps-choice-text"><span class="ps-choice-title">{{ label }}</span></span>
+                            <span class="ps-choice-check" aria-hidden="true">{{ ui.icon('check', 14) }}</span>
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
 
-<div id="taskResult" class="task-result"></div>
+            <div class="ps-choices">
+                <span class="ps-field-label" id="style-label">Стиль</span>
+                <input type="hidden" name="style" id="styleInput" value="{{ cur_style }}">
+                <div class="ps-choices-grid is-compact" role="radiogroup" aria-labelledby="style-label" data-input="styleInput">
+                    {% for value, label in styles %}
+                    {%- set sel = value == cur_style or (not style_known and loop.first) -%}
+                    <button type="button" role="radio" class="ps-choice{% if sel %} is-selected{% endif %}" aria-checked="{{ 'true' if sel else 'false' }}" tabindex="{{ 0 if sel else -1 }}" data-value="{{ value }}">
+                        <span class="ps-choice-body no-icon">
+                            <span class="ps-choice-text"><span class="ps-choice-title">{{ label }}</span></span>
+                            <span class="ps-choice-check" aria-hidden="true">{{ ui.icon('check', 14) }}</span>
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
 
-<div id="taskForm">
-    <form method="post" action="/generate" class="form" id="generateForm" onsubmit="return startPostGen(event)">
-        {% if surveys and surveys|length > 1 %}
-        <label>Медиа-образ
-            <select name="survey_id">
-                <option value="">Последний (по умолчанию)</option>
-                {% for s in surveys %}
-                <option value="{{ s.id }}">{{ s.title }} ({{ s.created_at }})</option>
-                {% endfor %}
-            </select>
-        </label>
+            <div class="ps-field">
+                <div class="ps-field-top">
+                    <label for="wishes" class="ps-field-label">Пожелания</label>
+                    <span class="ps-field-count">необязательно</span>
+                </div>
+                <textarea id="wishes" name="wishes" rows="4" class="ps-field-control" placeholder="О чём пост, какие факты упомянуть, призыв к действию">{{ prefill.idea if prefill else (form.wishes if form else '') }}</textarea>
+            </div>
+
+            <input type="hidden" name="task_type" value="generate_post">
+            {% if prefill %}<input type="hidden" name="plan_id" value="{{ prefill.plan_id }}">{% endif %}
+            <button type="submit" class="ps-btn ps-btn--primary ps-btn--lg ps-btn--block" id="genBtn" {% if not latest_survey %}disabled{% endif %}>
+                {{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">{{ 'Сгенерировать заново' if result else 'Сгенерировать пост' }}</span>
+            </button>
+            {% if not latest_survey %}
+            <a href="/survey" class="ps-btn ps-btn--secondary ps-btn--block">{{ ui.icon('plus', 20) }}<span class="ps-btn-label">Создать медиа-образ</span></a>
+            {% endif %}
+        </form>
+    </section>
+
+    <section class="app-stack-lg" aria-live="polite">
+        <div id="taskError" class="task-error" role="alert"></div>
+        <div id="taskLoader" class="task-loader">
+            <div class="ps-thinking" role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Пишу пост по медиа-образу…</span></div>
+            <span class="task-loader-sub">Обычно 15–60 секунд</span>
+        </div>
+
+        <div id="taskResult" class="task-result"></div>
+
+        <div id="resultStatic">
+        {% if result %}
+            {%- set m = platform_meta.get(form.platform, ('news', '', 4096)) -%}
+            <article class="ps-post">
+                <header class="ps-post-head">
+                    <span class="ps-post-platform">{{ ui.icon(m[0], 16) }}{% for k, l in platforms if k == form.platform %}{{ l }}{% endfor %}</span>
+                    {% if form.style %}<span class="ps-post-tag">{{ form.style }}</span>{% endif %}
+                </header>
+                <div class="ps-post-text"><p>{{ result }}</p></div>
+                <footer class="ps-post-foot">
+                    <span class="ps-post-count{% if result|length > m[2] %} is-over{% endif %}">{{ result|length|num }} / {{ m[2]|num }} зн.</span>
+                    <div class="ps-post-actions">
+                        <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" data-copy-target="post-text">{{ ui.icon('copy', 16) }}<span class="ps-btn-label">Копировать</span></button>
+                        <a href="/history" class="ps-btn ps-btn--primary ps-btn--sm">{{ ui.icon('news', 16) }}<span class="ps-btn-label">К постам</span></a>
+                    </div>
+                </footer>
+            </article>
+            <div id="post-text" hidden>{{ result }}</div>
+        {% else %}
+            <div class="ps-panel" id="emptyState">
+                <div class="ps-empty">
+                    <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('sparkle', 28) }}</span>
+                    <h3 class="ps-empty-title">Здесь появится пост</h3>
+                    <p class="ps-empty-text">Выберите платформу и стиль, при желании добавьте пожелания и нажмите «Сгенерировать пост».</p>
+                </div>
+            </div>
         {% endif %}
-        <label>Платформа
-            <select name="platform" required>
-                {% for key, label in platforms %}
-                <option value="{{ key }}" {% if (prefill and prefill.platform == key) or (form and form.platform == key) %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Стиль (например: дружелюбный, с юмором, экспертный)
-            <input type="text" name="style" value="{{ form.style if form else '' }}" required>
-        </label>
-        <label>Пожелания к посту
-            <textarea name="wishes" rows="3">{{ prefill.idea if prefill else (form.wishes if form else '') }}</textarea>
-        </label>
-        <input type="hidden" name="task_type" value="generate_post">
-        {% if prefill %}<input type="hidden" name="plan_id" value="{{ prefill.plan_id }}">{% endif %}
-        <button type="submit" {% if not latest_survey %}disabled{% endif %}>Сгенерировать</button>
-    </form>
+        </div>
+    </section>
 </div>
 
-{% if result %}
-<h2>Готовый пост</h2>
-<div class="card result">{{ result }}</div>
-<div class="post-actions">
-    <button type="button" class="copy-btn" data-copy-target="post-text">📋 Копировать</button>
-</div>
-<div id="post-text" hidden>{{ result }}</div>
-{% endif %}
-<p><a href="/dashboard">← Назад в кабинет</a></p>
+<template id="tpl-post">
+    <article class="ps-post">
+        <header class="ps-post-head">
+            <span class="ps-post-platform" data-platform></span>
+            <span class="ps-post-tag" data-style></span>
+        </header>
+        <div class="ps-post-text" data-text></div>
+        <footer class="ps-post-foot">
+            <span class="ps-post-count" data-count></span>
+            <span class="ps-post-note is-danger" data-over hidden>{{ ui.icon('alert', 14) }}Длиннее лимита платформы — сократите текст</span>
+            <div class="ps-post-actions">
+                <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" data-copy>{{ ui.icon('copy', 16) }}<span class="ps-btn-label">Копировать</span></button>
+                <a class="ps-btn ps-btn--primary ps-btn--sm" data-open>{{ ui.icon('edit', 16) }}<span class="ps-btn-label">Доработать и опубликовать</span></a>
+            </div>
+        </footer>
+    </article>
+</template>
+{% endblock %}
 
+{% block scripts %}
 <script>
+function fmtNum(n) { return Number(n).toLocaleString('ru-RU'); }
 function startPostGen(e) {
     e.preventDefault();
     var form = document.getElementById('generateForm');
+    var btn = document.getElementById('genBtn');
+    var label = btn.querySelector('.ps-btn-label');
+    var platformBtn = document.querySelector('#taskForm [data-input="platformInput"] .ps-choice.is-selected');
     TaskEngine.start(form, {
-        loaderId: 'taskLoader',
-        formId: 'taskForm',
-        errorId: 'taskError',
-        resultId: 'taskResult',
-        onDone: function(result) {
-            var html = '<h2>Готовый пост</h2>' +
-                '<div class="card result">' + escHtml(result.content) + '</div>' +
-                '<div class="post-actions">' +
-                '<button type="button" class="copy-btn" onclick="copyText(\'' + escAttr(result.content).replace(/'/g, "\\'") + '\', this)">📋 Копировать</button>' +
-                ' <a href="/posts/' + result.post_id + '" class="copy-btn">Открыть пост →</a>' +
-                '</div>';
-            document.getElementById('taskResult').innerHTML = html;
-            document.getElementById('taskResult').style.display = 'block';
+        loaderId: 'taskLoader', formId: 'resultStatic', errorId: 'taskError', resultId: 'taskResult',
+        onStart: function () {
+            btn.disabled = true; btn.classList.add('is-loading'); label.textContent = 'Пишу пост…';
+        },
+        onEnd: function () {
+            btn.disabled = false; btn.classList.remove('is-loading'); label.textContent = 'Сгенерировать заново';
+        },
+        onDone: function (result) {
+            var tpl = document.getElementById('tpl-post').content.firstElementChild.cloneNode(true);
+            var text = result.content || '';
+            var limit = platformBtn ? +platformBtn.getAttribute('data-limit') : 4096;
+            tpl.querySelector('[data-platform]').innerHTML = platformBtn ? platformBtn.querySelector('.ps-choice-icon').innerHTML + platformBtn.querySelector('.ps-choice-title').textContent : '';
+            tpl.querySelector('[data-style]').textContent = document.getElementById('styleInput').value;
+            text.split(/\n{2,}/).forEach(function (para) {
+                var p = document.createElement('p'); p.textContent = para; tpl.querySelector('[data-text]').appendChild(p);
+            });
+            var count = tpl.querySelector('[data-count]');
+            count.textContent = fmtNum(text.length) + ' / ' + fmtNum(limit) + ' зн.';
+            if (text.length > limit) { count.classList.add('is-over'); tpl.querySelector('[data-over]').hidden = false; }
+            tpl.querySelector('[data-copy]').addEventListener('click', function () { copyText(text); });
+            tpl.querySelector('[data-open]').href = '/posts/' + result.post_id;
+            var box = document.getElementById('taskResult');
+            box.innerHTML = ''; box.appendChild(tpl); box.style.display = 'block';
+            Press.toast('Пост готов: ' + fmtNum(text.length) + ' зн.', 'success', 'Он сохранён в «Мои посты».');
         }
     });
     return false;
-}
-function escHtml(s) {
-    var d = document.createElement('div');
-    d.textContent = s || '';
-    return d.innerHTML;
-}
-function escAttr(s) {
-    return (s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n');
 }
 </script>
 {% endblock %}

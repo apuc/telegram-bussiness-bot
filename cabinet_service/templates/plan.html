@@ -1,89 +1,122 @@
 {% extends "base.html" %}
-{% block title %}Контент-план — Личный кабинет{% endblock %}
+{% block title %}Контент-план{% endblock %}
 {% block content %}
-<h1>Контент-план</h1>
-
-{% if plan %}
-<div class="chips">
-    <span class="chip chip-planned">📝 В плане: {{ status_counts.get('planned', 0) }}</span>
-    <span class="chip chip-published">✅ Опубликовано: {{ status_counts.get('published', 0) }}</span>
-    <span class="chip chip-postponed">🕓 Отложено: {{ status_counts.get('postponed', 0) }}</span>
-</div>
-
-<div class="plan-list">
-    {% for item in plan %}
-    <div class="card plan-item status-{{ item.status }}">
-        <div class="plan-item-head">
-            <span class="plan-day">День {{ item.day }}</span>
-            <span class="plan-platform">{{ platform_label(item.platform) }}</span>
-            <span class="status-badge status-{{ item.status }}">
-                {% if item.status == 'published' %}✅ Опубликовано
-                {% elif item.status == 'postponed' %}🕓 Отложено
-                {% else %}📝 В плане{% endif %}
-            </span>
-        </div>
-        <div class="plan-idea">{{ item.idea }}</div>
-        <div class="post-actions">
-            <a href="/generate?plan_id={{ item.id }}&platform={{ item.platform }}&idea={{ item.idea | urlencode }}" class="copy-btn">✍️ Создать пост</a>
-            <form method="post" action="/plan/{{ item.id }}/status" class="inline-form">
-                <select name="status" class="status-select">
-                    <option value="planned" {% if item.status == 'planned' %}selected{% endif %}>📝 В плане</option>
-                    <option value="published" {% if item.status == 'published' %}selected{% endif %}>✅ Опубликовано</option>
-                    <option value="postponed" {% if item.status == 'postponed' %}selected{% endif %}>🕓 Отложено</option>
-                </select>
-                <button type="submit" class="copy-btn">Сохранить</button>
-            </form>
-            <form method="post" action="/plan/{{ item.id }}/delete" class="inline-form"
-                  onsubmit="return confirm('Удалить этот пункт плана?');">
-                <button type="submit" class="button-link button-link-danger">🗑 Удалить</button>
-            </form>
-        </div>
+{%- set status_meta = {
+    'planned': ('neutral', 'edit', 'В плане'),
+    'published': ('success', 'megaphone', 'Опубликовано'),
+    'postponed': ('warning', 'clock', 'Отложено'),
+} -%}
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Контент-план</h1>
+        {% if plan %}<p class="ps-lead">{{ plan|length }} {{ plural(plan|length, ['идея', 'идеи', 'идей']) }} для постов. Нажмите «Создать пост» — идея и платформа подставятся сами.</p>
+        {% else %}<p class="ps-lead">Идеи постов на каждый день — по вашему медиа-образу.</p>{% endif %}
     </div>
-    {% endfor %}
-</div>
-{% else %}
-<div class="card">
-    <p>Контент-плана пока нет. Составь его на 1–14 дней — он будет сохранён, и ты сможешь отмечать опубликованные и отложенные посты.</p>
-</div>
-{% endif %}
-
-<h2>{% if plan %}Пересоставить план{% else %}Составить план{% endif %}</h2>
-
-<div id="taskError" class="task-error"></div>
-
-<div id="taskLoader" class="task-loader">
-    <div class="spinner"></div>
-    <div class="task-loader-text">Составляю контент-план...</div>
-    <div class="task-loader-sub">Генерация занимает 20–60 секунд</div>
 </div>
 
-<div id="taskResult" class="task-result"></div>
+<div class="ps-split" style="--ps-aside: 340px">
+    <section class="app-stack-lg">
+        {% if plan %}
+        <div class="app-legend" aria-label="Статусы">
+            <span class="ps-badge ps-badge--neutral">{{ ui.icon('edit', 14) }}<span>В плане: {{ status_counts.get('planned', 0) }}</span></span>
+            <span class="ps-badge ps-badge--success">{{ ui.icon('megaphone', 14) }}<span>Опубликовано: {{ status_counts.get('published', 0) }}</span></span>
+            <span class="ps-badge ps-badge--warning">{{ ui.icon('clock', 14) }}<span>Отложено: {{ status_counts.get('postponed', 0) }}</span></span>
+        </div>
+        <div class="app-stack">
+            {% for item in plan %}
+            {%- set st = status_meta.get(item.status, status_meta.planned) -%}
+            <div class="ps-planday{% if item.status == 'published' %} is-done{% endif %}">
+                <div class="ps-planday-date">
+                    <span class="ps-planday-num">{{ item.day }}</span>
+                    <span class="ps-planday-wd">день</span>
+                </div>
+                <div class="ps-planday-body">
+                    <div class="ps-planday-meta">
+                        <span class="ps-badge ps-badge--{{ st[0] }}">{{ ui.icon(st[1], 14) }}<span>{{ st[2] }}</span></span>
+                        <span class="ps-planday-platform">{{ ui.icon('send' if item.platform == 'telegram' else 'news', 14) }}{{ platform_label(item.platform) }}</span>
+                    </div>
+                    <p class="ps-planday-idea">{{ item.idea }}</p>
+                    <div class="app-actions">
+                        <form method="post" action="/plan/{{ item.id }}/status" class="inline-form plan-status-form">
+                            <label class="visually-hidden" for="st-{{ item.id }}">Статус пункта</label>
+                            <select id="st-{{ item.id }}" name="status" class="status-select app-status-select" onchange="this.form.submit()">
+                                <option value="planned" {% if item.status == 'planned' %}selected{% endif %}>В плане</option>
+                                <option value="published" {% if item.status == 'published' %}selected{% endif %}>Опубликовано</option>
+                                <option value="postponed" {% if item.status == 'postponed' %}selected{% endif %}>Отложено</option>
+                            </select>
+                            <noscript><button type="submit" class="ps-btn ps-btn--quiet ps-btn--sm">Сохранить</button></noscript>
+                        </form>
+                        <form method="post" action="/plan/{{ item.id }}/delete" class="inline-form"
+                              data-confirm="Удалить этот пункт плана?">
+                            <button type="submit" class="ps-iconbtn" aria-label="Удалить пункт плана, день {{ item.day }}">{{ ui.icon('trash', 20) }}</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="ps-planday-action">
+                    <a href="/generate?plan_id={{ item.id }}&platform={{ item.platform }}&idea={{ item.idea | urlencode }}" class="ps-btn ps-btn--secondary ps-btn--sm">{{ ui.icon('sparkle', 16) }}<span class="ps-btn-label">Создать пост</span></a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="ps-panel">
+            <div class="ps-empty">
+                <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('calendar', 28) }}</span>
+                <h2 class="ps-empty-title">Плана пока нет</h2>
+                <p class="ps-empty-text">Выберите период в параметрах и нажмите «Сгенерировать план». Отмечайте опубликованные и отложенные посты — статистика соберётся сама.</p>
+            </div>
+        </div>
+        {% endif %}
+    </section>
 
-<div id="taskForm">
-    <form method="post" action="/plan" class="form" id="planForm" onsubmit="return startPlanGen(event)">
-        <label>На сколько дней (1-14)
-            <input type="number" name="days" min="1" max="14" value="7" required>
-        </label>
-        <input type="hidden" name="task_type" value="generate_plan">
-        <button type="submit">📅 Составить план</button>
-    </form>
+    <aside class="ps-panel app-plan-params" aria-labelledby="plan-params">
+        <h2 class="ps-h2" id="plan-params">Параметры</h2>
+        <div id="taskError" class="task-error" role="alert"></div>
+        <div id="taskLoader" class="task-loader">
+            <div class="ps-thinking" role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Составляю план…</span></div>
+            <span class="task-loader-sub">Обычно 20–60 секунд</span>
+        </div>
+        <div id="taskResult" class="task-result"></div>
+        <div id="taskForm">
+            <form method="post" action="/plan" class="app-form" id="planForm" onsubmit="return startPlanGen(event)">
+                <div class="ps-field">
+                    <div class="ps-field-top">
+                        <label for="days" class="ps-field-label">Период</label>
+                        <output for="days" class="ps-slider-value" id="daysOut">7 дней</output>
+                    </div>
+                    <input id="days" type="range" name="days" class="ps-slider" min="1" max="14" step="1" value="7" style="--ps-pct: 46.15%">
+                    <div class="ps-slider-scale" aria-hidden="true"><span>1 день</span><span>14 дней</span></div>
+                </div>
+                {% if active_persona %}
+                <p class="form-hint">Медиа-образ: {{ active_persona.title }}.</p>
+                {% endif %}
+                <input type="hidden" name="task_type" value="generate_plan">
+                <button type="submit" class="ps-btn ps-btn--primary ps-btn--block">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">{{ 'Пересоставить план' if plan else 'Сгенерировать план' }}</span></button>
+                {% if plan %}<p class="form-hint">Новый план заменит текущий.</p>{% endif %}
+            </form>
+        </div>
+    </aside>
 </div>
-<p><a href="/dashboard">← Назад в кабинет</a></p>
+{% endblock %}
 
+{% block scripts %}
 <script>
+(function () {
+    var r = document.getElementById('days'), out = document.getElementById('daysOut');
+    function sync() {
+        var v = +r.value;
+        out.textContent = v + ' ' + (function (n) { var a = n % 100, b = n % 10; if (a > 10 && a < 20) return 'дней'; if (b > 1 && b < 5) return 'дня'; if (b === 1) return 'день'; return 'дней'; })(v);
+        r.style.setProperty('--ps-pct', ((v - r.min) / (r.max - r.min) * 100) + '%');
+    }
+    r.addEventListener('input', sync); sync();
+})();
 function startPlanGen(e) {
     e.preventDefault();
-    var form = document.getElementById('planForm');
-    TaskEngine.start(form, {
-        loaderId: 'taskLoader',
-        formId: 'taskForm',
-        errorId: 'taskError',
-        resultId: 'taskResult',
-        onDone: function(result) {
-            var html = '<div class="card"><p>✅ План на ' + result.days + ' дн. составлен! (' + result.items + ' пунктов)</p>' +
-                '<p><a href="/plan" class="copy-btn">Обновить страницу →</a></p></div>';
-            document.getElementById('taskResult').innerHTML = html;
-            document.getElementById('taskResult').style.display = 'block';
+    TaskEngine.start(document.getElementById('planForm'), {
+        loaderId: 'taskLoader', formId: 'taskForm', errorId: 'taskError', resultId: 'taskResult',
+        onDone: function (result) {
+            Press.toast('План готов: ' + result.items + ' ' + Press.plural(result.items, ['идея', 'идеи', 'идей']), 'success', 'Обновляю страницу…');
+            setTimeout(function () { location.reload(); }, 900);
         }
     });
     return false;

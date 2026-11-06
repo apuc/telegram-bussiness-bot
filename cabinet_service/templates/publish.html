@@ -1,59 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Опубликовать пост — Личный кабинет{% endblock %}
+{% block title %}Опубликовать пост{% endblock %}
 {% block content %}
-<h1>Публикация поста</h1>
-
-<div class="card">
-  <p><strong>Платформа:</strong> {{ platform_label(post.platform) }}</p>
-  <p><strong>Создан:</strong> {{ post.created_at }}</p>
-  {% if post.published %}
-  <p><strong>Статус:</strong> ✅ Опубликован в «{{ post.published_to }}» {{ post.published_at }}</p>
-  {% else %}
-  <p><strong>Статус:</strong> ⏳ Не опубликован</p>
-  {% endif %}
+<div class="ps-main-head">
+    <div>
+        <a href="/posts/{{ post.id }}" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">К посту</span></a>
+        <h1 class="ps-h1">Публикация</h1>
+        <p class="ps-lead">{{ platform_label(post.platform) }} · создан {{ post.created_at|local_dt }}</p>
+    </div>
 </div>
 
-<div class="card">
-  <h2>Текст поста</h2>
-  <div class="result">{{ post.content }}</div>
-</div>
+<div class="ps-split" style="--ps-aside: 380px">
+    <article class="ps-post">
+        <header class="ps-post-head">
+            <span class="ps-post-platform">{{ ui.icon('send', 16) }}{{ platform_label(post.platform) }}</span>
+            {% if post.published %}
+            <span class="ps-badge ps-badge--success">{{ ui.icon('megaphone', 14) }}<span>Опубликован{% if post.published_to %} в «{{ post.published_to }}»{% endif %}</span></span>
+            {% else %}
+            <span class="ps-badge ps-badge--neutral">{{ ui.icon('clock', 14) }}<span>Ещё не опубликован</span></span>
+            {% endif %}
+        </header>
+        <div class="ps-post-text"><p>{{ post.content }}</p></div>
+        <footer class="ps-post-foot">
+            <span class="ps-post-count{% if post.content|length > 4096 %} is-over{% endif %}">{{ post.content|length|num }} / 4&nbsp;096 зн.</span>
+            {% if post.content|length > 1024 %}
+            <span class="ps-post-note">{{ ui.icon('info', 14) }}Если есть картинка: длиннее 1 024 знаков — фото уйдёт без подписи, текст — следующим сообщением</span>
+            {% endif %}
+        </footer>
+    </article>
 
-{% if channels %}
-<form method="post" action="/posts/{{ post.id }}/publish" class="form">
-  <label>Канал для публикации
-    <select name="channel_id" required>
-      <option value="" disabled selected>Выберите канал или чат</option>
-      {% for ch in channels %}
-      <option value="{{ ch.id }}">{{ ch.title }} ({{ ch.chat_type }}){% if ch.username %} @{{ ch.username }}{% endif %}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <button type="submit">📤 Опубликовать в Telegram</button>
-</form>
-{% else %}
-<div class="card">
-  <p>⚠️ Нет добавленных каналов. <a href="/channels/add">Добавьте канал →</a></p>
-</div>
-{% endif %}
+    <div class="app-stack-lg">
+        <section class="ps-panel">
+            <h2 class="ps-h2">Telegram</h2>
+            {% if channels %}
+            <form method="post" action="/posts/{{ post.id }}/publish" class="app-form">
+                <div class="ps-field">
+                    <label for="channel_id" class="ps-field-label">Канал или чат</label>
+                    <div class="ps-select">
+                        <select id="channel_id" name="channel_id" class="ps-field-control ps-select-control" required>
+                            <option value="" disabled selected>Выберите канал</option>
+                            {% for ch in channels %}
+                            <option value="{{ ch.id }}">{{ ch.title }}{% if ch.username %} · @{{ ch.username }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        {{ ui.icon('chevron-down', 18, 'ps-select-chev') }}
+                    </div>
+                </div>
+                <button type="submit" class="ps-btn ps-btn--primary ps-btn--block">{{ ui.icon('send', 20) }}<span class="ps-btn-label">Опубликовать в Telegram</span></button>
+            </form>
+            {% else %}
+            <p class="app-muted" style="margin:0">Каналов пока нет. Добавьте канал, где бот — администратор.</p>
+            <a href="/channels/add" class="ps-btn ps-btn--secondary">{{ ui.icon('plus', 20) }}<span class="ps-btn-label">Добавить канал</span></a>
+            {% endif %}
+        </section>
 
-{% if tenchat_connected %}
-<div class="card" style="margin-top:15px;">
-  <h2>TenChat</h2>
-  <p>Опубликовать этот пост в ваш профиль TenChat (@{{ tenchat_username }}).</p>
-  <form method="post" action="/posts/{{ post.id }}/publish/tenchat" class="form" style="margin:0;">
-    <button type="submit">📤 Опубликовать в TenChat</button>
-  </form>
-</div>
-{% else %}
-<div class="card" style="margin-top:15px;">
-  <h2>TenChat</h2>
-  <p>Подключите TenChat, чтобы публиковать посты в профиль.</p>
-  <a href="/tenchat" class="copy-btn">🔑 Настроить TenChat</a>
-</div>
-{% endif %}
-
-<div class="post-actions">
-  <a href="/posts/{{ post.id }}" class="copy-btn">← Назад к посту</a>
-  <a href="/channels" class="copy-btn">⚙ Управление каналами</a>
+        <section class="ps-panel">
+            <h2 class="ps-h2">TenChat</h2>
+            {% if tenchat_connected %}
+            <p class="app-muted" style="margin:0">Пост уйдёт в ваш профиль @{{ tenchat_username }}.</p>
+            <form method="post" action="/posts/{{ post.id }}/publish/tenchat" class="inline-form">
+                <button type="submit" class="ps-btn ps-btn--secondary ps-btn--block">{{ ui.icon('send', 20) }}<span class="ps-btn-label">Опубликовать в TenChat</span></button>
+            </form>
+            {% else %}
+            <p class="app-muted" style="margin:0">Подключите TenChat, чтобы публиковать посты в профиль.</p>
+            <a href="/tenchat" class="ps-btn ps-btn--secondary">{{ ui.icon('key', 20) }}<span class="ps-btn-label">Подключить TenChat</span></a>
+            {% endif %}
+        </section>
+    </div>
 </div>
 {% endblock %}

@@ -1,20 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Статистика — Личный кабинет{% endblock %}
+{% block title %}Статистика{% endblock %}
 {% block content %}
-<h1>Статистика использования</h1>
-<div class="card">
-    <p><strong>В кабинете с:</strong> {{ stats.created_at }}</p>
-    <p><strong>Всего постов:</strong> {{ stats.total_posts }}</p>
+{%- set labels = {'instagram': 'Instagram', 'linkedin': 'LinkedIn', 'telegram': 'Telegram', 'twitter': 'Twitter/X', 'tenchat': 'TenChat', 'ad': 'Рекламный пост'} -%}
+{%- set max_count = (stats.by_platform.values() | max) if stats.by_platform else 1 -%}
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Статистика</h1>
+        <p class="ps-lead">В кабинете с {{ stats.created_at|local_dt('%d.%m.%Y') }}.</p>
+    </div>
 </div>
-<h2>По платформам</h2>
-{% if stats.by_platform %}
-<ul>
-    {% for platform, count in stats.by_platform.items() %}
-    <li>{{ platform }}: {{ count }}</li>
-    {% endfor %}
-</ul>
-{% else %}
-<p>Пока нет постов.</p>
-{% endif %}
-<p><a href="/dashboard">← Назад в кабинет</a></p>
+
+<div class="ps-grid-4">
+    <div class="ps-stat">
+        <span class="ps-stat-icon" aria-hidden="true">{{ ui.icon('news', 20) }}</span>
+        <span class="ps-stat-label">Постов создано</span>
+        <span class="ps-stat-value">{{ stats.total_posts }}</span>
+    </div>
+    <div class="ps-stat">
+        <span class="ps-stat-icon" aria-hidden="true">{{ ui.icon('grid', 20) }}</span>
+        <span class="ps-stat-label">Платформ</span>
+        <span class="ps-stat-value">{{ stats.by_platform | length }}</span>
+    </div>
+</div>
+
+<section class="ps-panel">
+    <h2 class="ps-h2">Посты по платформам</h2>
+    {% if stats.by_platform %}
+    <div class="app-bars">
+        {% for platform, count in stats.by_platform | dictsort(by='value', reverse=True) %}
+        <div class="app-bar">
+            <span class="app-bar-label">{{ labels.get(platform, platform) }}</span>
+            <span class="app-bar-track" role="img" aria-label="{{ labels.get(platform, platform) }}: {{ count }}"><span class="app-bar-fill" style="width: {{ (count / max_count * 100) | round(1) }}%"></span></span>
+            <span class="app-bar-value">{{ count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="ps-empty">
+        <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('chart', 28) }}</span>
+        <h3 class="ps-empty-title">Данных пока нет</h3>
+        <p class="ps-empty-text">Создайте первый пост — здесь появится разбивка по платформам.</p>
+        <a href="/generate" class="ps-btn ps-btn--primary">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Создать пост</span></a>
+    </div>
+    {% endif %}
+</section>
 {% endblock %}

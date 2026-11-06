@@ -2,15 +2,16 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ИИ Пресс-секретарь — умный контент для вашего бизнеса</title>
-    <meta name="description" content="ИИ Пресс-секретарь — сервис, который создаёт контент-план, генерирует посты и картинки для вашего бизнеса и публикует их в Telegram.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ИИ Пресс-секретарь — говорит вашим голосом</title>
+    <meta name="description" content="ИИ Пресс-секретарь пишет посты, рисует картинки и строит контент-план в стиле вашего медиа-образа и публикует в Telegram в один клик.">
+    <link rel="icon" type="image/svg+xml" href="/static/press/app-icon.svg">
 
     <!-- OpenGraph -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="ИИ Пресс-секретарь">
-    <meta property="og:title" content="ИИ Пресс-секретарь — умный контент для вашего бизнеса">
-    <meta property="og:description" content="Создавайте контент-план, генерируйте посты и картинки для своего бизнеса и публикуйте их в Telegram — всё в одном сервисе.">
+    <meta property="og:title" content="ИИ Пресс-секретарь — говорит вашим голосом">
+    <meta property="og:description" content="Посты, картинки и контент-план в стиле вашего бренда — и публикация в Telegram в один клик.">
     <meta property="og:url" content="https://press.my-dpr.ru/">
     <meta property="og:image" content="https://press.my-dpr.ru/static/og-image.png">
     <meta property="og:image:width" content="1536">
@@ -18,427 +19,439 @@
     <meta property="og:image:alt" content="ИИ Пресс-секретарь — сервис для генерации контента и публикации в Telegram">
     <meta property="og:locale" content="ru_RU">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ИИ Пресс-секретарь — умный контент для вашего бизнеса">
-    <meta name="twitter:description" content="Создавайте контент-план, генерируйте посты и картинки для своего бизнеса и публикуйте их в Telegram.">
+    <meta name="twitter:title" content="ИИ Пресс-секретарь — говорит вашим голосом">
+    <meta name="twitter:description" content="Посты, картинки и контент-план в стиле вашего бренда — и публикация в Telegram в один клик.">
     <meta name="twitter:image" content="https://press.my-dpr.ru/static/og-image.png">
 
+    <link rel="stylesheet" href="/static/press/tokens.css?v=2">
+    <link rel="stylesheet" href="/static/press/components.css?v=4">
+    <link rel="stylesheet" href="/static/style.css?v=20">
     <script>
-        // Тёмная тема по умолчанию; светлая — по выбору пользователя (сохраняется в localStorage)
         (function () {
             try {
                 var saved = localStorage.getItem('theme');
-                if (saved === 'light') {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                }
+                if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
             } catch (e) {}
         })();
     </script>
     <style>
-        /* Тёмная тема по умолчанию */
-        :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --surface-2: #273449;
-            --text: #e2e8f0;
-            --text-muted: #94a3b8;
-            --accent: #60a5fa;
-            --accent-hover: #93c5fd;
-            --accent-soft: #1e3a5f;
-            --border: #334155;
-            --border-strong: #475569;
-        }
-        /* Светлая тема (по выбору пользователя) */
-        :root[data-theme="light"] {
-            --bg: #f4f5f7;
-            --surface: #ffffff;
-            --surface-2: #f1f3f6;
-            --text: #1f2328;
-            --text-muted: #4b5563;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --accent-soft: #eef2ff;
-            --border: #e2e5ea;
-            --border-strong: #d1d5db;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-        }
-        .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+        /* Лендинг: сетка 12 колонок, контейнер 1200px, разделы через space-12 */
+        .lp-container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 var(--space-8); }
+        .lp-section { padding: var(--space-16) 0; }
+        .lp-section + .lp-section { padding-top: 0; }
+        .lp-head { display: grid; gap: var(--space-3); max-width: 640px; margin-bottom: var(--space-8); }
+        .lp-kicker { font: 600 12px/16px var(--font-text); letter-spacing: 0.04em; text-transform: uppercase; color: var(--brand); }
+        .lp-h2 { margin: 0; font: 600 28px/34px var(--font-display); letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+        .lp-lead { margin: 0; font: 400 17px/26px var(--font-text); color: var(--ink-secondary); }
 
-        /* Header */
-        .header {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 16px 0;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+        /* Шапка — стекло поверх контента */
+        .lp-header {
+            position: sticky; top: 0; z-index: 50;
+            background: var(--surface-glass);
+            -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(180%); backdrop-filter: blur(var(--blur-glass)) saturate(180%);
+            box-shadow: inset 0 -1px 0 var(--hairline);
         }
-        .header-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-        }
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 700;
-            font-size: 18px;
-            color: var(--text);
-            text-decoration: none;
-        }
-        .brand-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: var(--accent);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-        }
-        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .lp-header-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 68px; }
+        .lp-header-actions { display: flex; align-items: center; gap: var(--space-2); }
+        .lp-short { display: none; }
+        .lp-logo { display: inline-flex; text-decoration: none !important; }
 
-        /* Бургер-меню (скрыто на десктопе) */
-        .burger {
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 5px;
-            width: 40px;
-            height: 40px;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            cursor: pointer;
-            padding: 0;
+        /* Первый экран — градиент бренда, текст на глубокой стороне */
+        .lp-hero {
+            position: relative; overflow: hidden; color: #ffffff;
+            background: linear-gradient(245deg, var(--brand-bright), var(--logo-deep) 62%, #1a63aa);
         }
-        .burger-line {
-            display: block;
-            width: 20px;
-            height: 2px;
-            background: var(--text);
-            border-radius: 2px;
-            transition: transform .2s ease, opacity .2s ease;
-        }
-        .burger.open .burger-line:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-        .burger.open .burger-line:nth-child(2) { opacity: 0; }
-        .burger.open .burger-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+        .lp-hero-inner { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: center; gap: var(--space-12); padding-block: var(--space-16); }
+        .lp-hero-text { display: grid; gap: var(--space-6); justify-items: start; }
+        .lp-display { margin: 0; color: #ffffff; font: 700 48px/52px var(--font-display); letter-spacing: -0.025em; text-wrap: balance; }
+        .lp-hero-lead { margin: 0; max-width: 34em; font: 400 19px/28px var(--font-text); color: #ffffff; }
+        .lp-hero-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+        .lp-btn-white { background: #ffffff; color: var(--logo-deep); box-shadow: var(--shadow-2); }
+        .lp-btn-white:hover:not(:disabled) { background: var(--brand-tint); }
+        .lp-btn-outline { background: rgba(9, 40, 80, 0.32); color: #ffffff; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.72); }
+        .lp-btn-outline:hover:not(:disabled) { background: rgba(255, 255, 255, 0.24); }
+        .lp-hero .ps-btn:focus-visible { outline-color: #ffffff; }
+        .lp-hero-note { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: 0; padding: 0; list-style: none; font: 500 15px/20px var(--font-text); color: #ffffff; }
+        .lp-hero-note li { display: inline-flex; align-items: center; gap: var(--space-2); }
 
-        .mobile-menu {
-            display: none;
-            flex-direction: column;
-            gap: 10px;
-            padding: 12px 24px 16px;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-        }
-        .mobile-menu.open { display: flex; }
-        .mobile-menu-link { text-align: center; }
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            border: none;
-            transition: background .15s ease;
-        }
-        .btn-primary { background: var(--accent); color: #fff; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
-        .btn-ghost:hover { background: var(--accent-soft); }
 
-        /* Hero */
-        .hero {
-            padding: 80px 0 64px;
-            text-align: center;
-        }
-        .hero h1 {
-            font-size: 44px;
-            line-height: 1.15;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 20px;
-        }
-        .hero h1 span { color: var(--accent); }
-        .hero p {
-            font-size: 19px;
-            color: var(--text-muted);
-            max-width: 640px;
-            margin: 0 auto 32px;
-        }
-        .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+        /* ---------- Первый экран: фон рисует hero-bg.js (холст) ----------
+           Главный объект — знак веером, второй план — каналы с постами, фактура — сетка по контейнеру.
+           Без JS остаётся градиент бренда. */
+        .lp-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .lp-hero-inner { position: relative; z-index: 1; }
 
-        /* Features */
-        .features {
-            padding: 40px 0 72px;
+        /* Пример работы сервиса справа */
+        .lp-demo { position: relative; display: grid; gap: var(--space-3); color: var(--ink); }
+        .lp-demo .ps-post { box-shadow: var(--shadow-float); }
+        /* Пример поста мягко парит; плашки вокруг — стекло */
+        /* Карточка примера — контент: стоит на месте, движется только фон */
+        .lp-demo .lp-persona-pill, .lp-demo .ps-chip { background: var(--surface-glass); -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(180%); backdrop-filter: blur(var(--blur-glass)) saturate(180%); box-shadow: var(--shadow-2), inset 0 1px 0 var(--glass-edge); }
+        @media (prefers-reduced-motion: reduce) { .lp-demo { animation: none; } }
+        .lp-demo-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+        .lp-demo .ps-thinking { justify-self: start; box-shadow: var(--shadow-2); }
+        .lp-demo-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+        .lp-demo .ps-post { transition: opacity var(--dur-tap) var(--ease-standard), transform var(--dur-smooth) var(--spring-smooth); }
+        .lp-demo .ps-post.is-switching { opacity: 0; transform: translateY(6px) scale(0.99); }
+        /* Подпись лежит над светлым краем градиента — на тёмном стекле, иначе контраст 3:1 */
+        .lp-demo-cap { justify-self: start; margin: 0; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); font: 500 13px/18px var(--font-text); color: #ffffff;
+            background: rgba(9, 40, 80, 0.42); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+        .lp-demo .ps-chip:disabled { opacity: 0.45; cursor: progress; }
+        .lp-demo .ps-chip.is-selected { background: var(--brand-tint); color: var(--brand); box-shadow: inset 0 0 0 1.5px var(--brand), var(--shadow-2); }
+        .lp-demo .ps-post-text p { transition: opacity var(--dur-tap) var(--ease-standard); }
+        .lp-demo .ps-post.is-busy .ps-post-text p { opacity: 0.4; }
+        .lp-demo [data-demo-published] { color: var(--success); }
+        .lp-persona-pill {
+            display: inline-flex; align-items: center; gap: var(--space-2); justify-self: start; padding: 6px 12px 6px 6px;
+            border-radius: var(--radius-pill); background: var(--surface-raised); box-shadow: var(--shadow-2);
+            font: 500 13px/18px var(--font-text); color: var(--ink-secondary);
         }
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-        }
-        .feature {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 28px 24px;
-        }
-        .feature-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            background: var(--accent-soft);
-            color: var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin-bottom: 16px;
-        }
-        .feature h3 { font-size: 18px; margin-bottom: 8px; }
-        .feature p { color: var(--text-muted); font-size: 15px; }
+        .lp-persona-pill b { color: var(--ink); font-weight: 600; }
+        .lp-persona-pill .ps-sidenav-persona-icon { width: 28px; height: 28px; border-radius: 50%; }
 
-        /* How it works */
-        .how {
-            padding: 56px 0;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-        }
-        .how h2 { text-align: center; font-size: 30px; margin-bottom: 40px; }
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 24px;
-        }
-        .step { text-align: center; padding: 0 12px; }
-        .step-num {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--accent);
-            color: #fff;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 14px;
-        }
-        .step h4 { margin-bottom: 6px; }
-        .step p { color: var(--text-muted); font-size: 15px; }
+        /* Возможности */
+        .lp-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: var(--space-4); }
+        .lp-feature { display: grid; align-content: start; gap: var(--space-2); padding: var(--inset-card); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--hairline); }
+        .lp-feature .ps-action-icon { margin-bottom: var(--space-2); }
+        .lp-feature h3 { margin: 0; font: 600 20px/26px var(--font-display); color: var(--ink); }
+        .lp-feature p { margin: 0; font: 400 15px/22px var(--font-text); color: var(--ink-secondary); }
+        .lp-feature .lp-feature-ai { background: var(--indigo-tint); color: var(--indigo); }
 
-        /* CTA */
-        .cta {
-            padding: 72px 0;
-            text-align: center;
+        /* Как это работает */
+        .lp-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: var(--space-4); counter-reset: step; list-style: none; margin: 0; padding: 0; }
+        .lp-step { display: grid; align-content: start; gap: var(--space-2); padding: var(--inset-card); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+        .lp-step-num { display: grid; place-items: center; width: var(--tile-md); height: var(--tile-md); margin-bottom: var(--space-2); border-radius: var(--radius-sm); background: var(--brand); color: var(--on-brand); font: 700 17px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+        .lp-step h3 { margin: 0; font: 600 17px/24px var(--font-text); color: var(--ink); }
+        .lp-step p { margin: 0; font: 400 15px/22px var(--font-text); color: var(--ink-secondary); }
+
+        /* Столпы контент-плана */
+        .lp-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: var(--space-12); align-items: center; }
+        .lp-pillars { display: grid; gap: var(--space-4); }
+        .lp-pillar-row { display: grid; gap: var(--space-2); }
+        .lp-pillar-row p { margin: 0; color: var(--ink-secondary); }
+        .lp-plan { display: grid; gap: var(--space-3); }
+        .lp-plan .ps-planday { animation: none; box-shadow: var(--shadow-1), inset 0 0 0 1px var(--hairline); }
+
+        /* Призыв */
+        .lp-cta {
+            display: grid; justify-items: center; gap: var(--space-4); padding: var(--space-12) var(--space-6); text-align: center;
+            border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--hairline);
         }
-        .cta h2 { font-size: 30px; margin-bottom: 14px; }
-        .cta p { color: var(--text-muted); font-size: 17px; margin-bottom: 28px; }
+        .lp-cta .lp-lead { max-width: 36em; }
 
-        /* Footer */
-        .footer {
-            padding: 24px 0;
-            border-top: 1px solid var(--border);
-            background: var(--surface);
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 14px;
+        .lp-footer { padding: var(--space-8) 0 calc(var(--space-8) + env(safe-area-inset-bottom)); box-shadow: inset 0 1px 0 var(--hairline); }
+        .lp-footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
+        .lp-footer nav { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+        .lp-footer small { font: 400 13px/18px var(--font-text); color: var(--ink-tertiary); }
+
+        @media (max-width: 959px) {
+            .lp-hero-inner, .lp-split { grid-template-columns: minmax(0, 1fr); gap: var(--space-8); }
+            .lp-display { font-size: 44px; line-height: 48px; }
         }
-
-        @media (max-width: 640px) {
-            .hero { padding: 48px 0 40px; }
-            .hero h1 { font-size: 32px; }
-            .hero p { font-size: 17px; }
-
-            /* Адаптивный хедер для мобильных: бургер-меню */
-            .header { padding: 12px 0; }
-            .header-inner { gap: 8px; }
-            .brand { gap: 8px; font-size: 16px; }
-            .brand-icon { width: 28px; height: 28px; font-size: 16px; }
-            .header-actions { gap: 8px; }
-            .theme-toggle { padding: 8px 10px; }
-
-            /* Скрываем кнопки "Войти" и "Регистрация" из хедера, показываем бургер */
-            .header-login, .header-register { display: none; }
-            .burger { display: flex; }
+        @media (max-width: 599px) {
+            .lp-container { padding: 0 var(--space-4); }
+            .lp-section { padding: var(--space-12) 0; }
+            .lp-hero-inner { padding-block: var(--space-8) var(--space-12); }
+            .lp-display { font-size: 36px; line-height: 40px; }
+            .lp-hero-lead { font-size: 17px; line-height: 26px; }
+            .lp-hero-actions .ps-btn { flex: 1 1 100%; }
+            .lp-h2 { font-size: 24px; line-height: 30px; }
+            .lp-header .lp-login { display: none; }
+            .lp-long { display: none; }
+            .lp-short { display: inline; }
+            .lp-header .ps-logo-word { font-size: 14px; }
         }
-
-        @media (max-width: 400px) {
-            /* На очень узких экранах скрываем текст бренда */
-            .brand span:not(.brand-icon) { display: none; }
-            .brand { gap: 0; }
-        }
+        @media (max-width: 359px) { .lp-header .ps-logo-word { display: none; } }
     </style>
 </head>
-<body>
-    <header class="header">
-        <div class="container header-inner">
-            <a class="brand" href="/">
-                <span class="brand-icon">🤖</span>
-                <span>ИИ Пресс-секретарь</span>
-            </a>
-            <div class="header-actions">
-                <button type="button" class="btn btn-ghost theme-toggle" data-theme-toggle aria-label="Переключить тему">🌙</button>
-                <a class="btn btn-ghost header-login" href="/login"><span>Войти</span></a>
-                <a class="btn btn-primary header-register" href="/register">Регистрация</a>
-                <button type="button" class="burger" id="burgerBtn" aria-label="Открыть меню" aria-expanded="false">
-                    <span class="burger-line"></span>
-                    <span class="burger-line"></span>
-                    <span class="burger-line"></span>
-                </button>
+<body class="lp-body">
+    <header class="lp-header app-glass">
+        <div class="lp-container lp-header-inner">
+            <a class="lp-logo" href="/" aria-label="ИИ Пресс-секретарь — на главную">{{ ui.logo('lphead', 'color', 32) }}</a>
+            <div class="lp-header-actions">
+                <button type="button" class="ps-iconbtn" data-theme-toggle aria-label="Сменить тему">{{ ui.icon('theme', 22) }}</button>
+                <a class="ps-btn ps-btn--quiet lp-login" href="/login"><span class="ps-btn-label">Войти</span></a>
+                <a class="ps-btn ps-btn--primary" href="/register" aria-label="Зарегистрироваться"><span class="ps-btn-label lp-long">Зарегистрироваться</span><span class="ps-btn-label lp-short">Начать</span></a>
             </div>
         </div>
-        <nav class="mobile-menu" id="mobileMenu">
-            <a class="btn btn-ghost mobile-menu-link" href="/login"><span>Войти</span></a>
-            <a class="btn btn-primary mobile-menu-link" href="/register">Регистрация</a>
-        </nav>
     </header>
 
-    <section class="hero">
-        <div class="container">
-            <h1>Ваш личный <span>ИИ Пресс-секретарь</span></h1>
-            <p>Создавайте контент-план, генерируйте посты и картинки для своего бизнеса и публикуйте их в Telegram — всё в одном сервисе.</p>
-            <div class="hero-actions">
-                <a class="btn btn-primary" href="/register">Начать бесплатно</a>
-                <a class="btn btn-ghost" href="/login">Войти в кабинет</a>
-            </div>
-        </div>
-    </section>
+    <main id="main">
+        <section class="lp-hero" data-daypart="day">
+            <canvas class="lp-bg" aria-hidden="true"></canvas>
+            <div class="lp-container lp-hero-inner">
+                <div class="lp-hero-text">
+                    {{ ui.logo('lphero', 'white', 48, 'mark') }}
+                    <h1 class="lp-display">Пресс-секретарь, который говорит вашим голосом</h1>
+                    <p class="lp-hero-lead">Опишите бренд один раз — и нейросеть будет писать посты, рисовать картинки и строить контент-план в вашем стиле. Публикация в Telegram — в один клик.</p>
+                    <div class="lp-hero-actions">
+                        <a class="ps-btn ps-btn--lg lp-btn-white" href="/register">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Начать бесплатно</span></a>
+                        <a class="ps-btn ps-btn--lg lp-btn-outline" href="/login"><span class="ps-btn-label">Войти в кабинет</span></a>
+                    </div>
+                    <ul class="lp-hero-note">
+                        <li>{{ ui.icon('check', 18) }}Медиа-образ за 5 минут</li>
+                        <li>{{ ui.icon('check', 18) }}Без дизайнера и копирайтера</li>
+                    </ul>
+                </div>
 
-    <section class="features">
-        <div class="container">
-            <div class="features-grid">
-                <div class="feature">
-                    <div class="feature-icon">✍️</div>
-                    <h3>Генерация постов</h3>
-                    <p>ИИ пишет готовые тексты для вашего бизнеса с учётом вашего медиа-образа и стиля.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🎨</div>
-                    <h3>Генерация картинок</h3>
-                    <p>Создавайте иллюстрации к постам автоматически — без дизайнера и фотостока.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">📅</div>
-                    <h3>Контент-план</h3>
-                    <p>Планируйте публикации на неделю вперёд и следите за выполнением плана.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">📣</div>
-                    <h3>Публикация в Telegram</h3>
-                    <p>Публикуйте посты в свои каналы прямо из личного кабинета.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="how">
-        <div class="container">
-            <h2>Как это работает</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-num">1</div>
-                    <h4>Зарегистрируйтесь</h4>
-                    <p>Создайте аккаунт в личном кабинете за пару минут.</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">2</div>
-                    <h4>Опишите медиа-образ</h4>
-                    <p>Расскажите о своём бизнесе — ИИ подстроится под ваш стиль.</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">3</div>
-                    <h4>Генерируйте контент</h4>
-                    <p>Создавайте посты, картинки и контент-план автоматически.</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">4</div>
-                    <h4>Публикуйте</h4>
-                    <p>Отправляйте готовые посты в свои Telegram-каналы.</p>
+                <div class="lp-demo" id="demo" aria-label="Пример работы сервиса">
+                    <p class="lp-demo-cap">Пример — нажмите на команду и посмотрите, как работает кабинет</p>
+                    <div class="lp-demo-head">
+                        <span class="lp-persona-pill">
+                            <span class="ps-sidenav-persona-icon" aria-hidden="true">{{ ui.icon('persona', 16) }}</span>
+                            <span>Медиа-образ: <b data-demo-name>Пекарня «Тёплый хлеб»</b></span>
+                        </span>
+                    </div>
+                    <article class="ps-post" aria-live="polite">
+                        <header class="ps-post-head">
+                            <span class="ps-post-platform" data-demo-platform>{{ ui.icon('send', 16) }}Telegram</span>
+                            <span class="ps-post-tag" data-demo-style>Вовлекающий</span>
+                            <span class="ps-post-tag" data-demo-version hidden>Версия 2</span>
+                        </header>
+                        <div class="ps-post-text" data-demo-text></div>
+                        <footer class="ps-post-foot">
+                            <span class="ps-post-count" data-demo-count></span>
+                            <span class="ps-post-note" data-demo-published hidden>{{ ui.icon('check', 14) }}<span>Опубликовано</span></span>
+                            <div class="ps-post-actions">
+                                <button type="button" class="ps-btn ps-btn--primary ps-btn--sm" data-demo-publish>{{ ui.icon('send', 16) }}<span class="ps-btn-label">Опубликовать</span></button>
+                            </div>
+                        </footer>
+                    </article>
+                    <div class="ps-thinking" data-demo-thinking hidden role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Переписываю…</span></div>
+                    <div class="lp-demo-row" role="group" aria-label="Команды правки">
+                        <button type="button" class="ps-chip ps-chip--sm" data-demo-cmd="short">{{ ui.icon('sparkle', 16) }}<span>Сократи вдвое</span></button>
+                        <button type="button" class="ps-chip ps-chip--sm" data-demo-cmd="official">{{ ui.icon('sparkle', 16) }}<span>Сделай официальнее</span></button>
+                        <button type="button" class="ps-chip ps-chip--sm" data-demo-cmd="cta">{{ ui.icon('sparkle', 16) }}<span>Добавь призыв</span></button>
+                        <button type="button" class="ps-chip ps-chip--sm" data-demo-cmd="orig" hidden>{{ ui.icon('history', 16) }}<span>Вернуть исходный</span></button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="cta">
-        <div class="container">
-            <h2>Готовы начать?</h2>
-            <p>Зарегистрируйтесь и получите доступ к личному кабинету.</p>
-            <a class="btn btn-primary" href="/register">Зарегистрироваться</a>
-        </div>
-    </section>
+        <section class="lp-section" aria-labelledby="features-title">
+            <div class="lp-container">
+                <div class="lp-head">
+                    <span class="lp-kicker">Что умеет</span>
+                    <h2 class="lp-h2" id="features-title">Весь контент — в одном кабинете</h2>
+                    <p class="lp-lead">Рядом с каждым результатом видно, по какому медиа-образу он сделан.</p>
+                </div>
+                <div class="lp-features">
+                    <article class="lp-feature">
+                        <span class="ps-action-icon lp-feature-ai" aria-hidden="true">{{ ui.icon('persona', 20) }}</span>
+                        <h3>Медиа-образ</h3>
+                        <p>Анкета бренда, личности или сообщества. Можно заполнить автоматически по ссылке на канал.</p>
+                    </article>
+                    <article class="lp-feature">
+                        <span class="ps-action-icon" aria-hidden="true">{{ ui.icon('sparkle', 20) }}</span>
+                        <h3>Посты</h3>
+                        <p>Выберите платформу и стиль — пост готов. Правки готовыми командами: «Сократи вдвое», «Добавь призыв».</p>
+                    </article>
+                    <article class="lp-feature">
+                        <span class="ps-action-icon" aria-hidden="true">{{ ui.icon('image', 20) }}</span>
+                        <h3>Картинки</h3>
+                        <p>Иллюстрации к постам по шаблону или по концепциям, которые ИИ подберёт к тексту.</p>
+                    </article>
+                    <article class="lp-feature">
+                        <span class="ps-action-icon" aria-hidden="true">{{ ui.icon('megaphone', 20) }}</span>
+                        <h3>Публикация</h3>
+                        <p>Пост и фото уходят в ваш Telegram-канал одним сообщением — прямо из кабинета.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
 
-    <footer class="footer">
-        <div class="container">
-            © 2026 ИИ Пресс-секретарь · <a href="/login">Вход</a> · <a href="/register">Регистрация</a> · <a href="/dashboard">Кабинет</a>
+        <section class="lp-section" aria-labelledby="plan-title">
+            <div class="lp-container lp-split">
+                <div class="lp-pillars">
+                    <div class="lp-head" style="margin-bottom: 0">
+                        <span class="lp-kicker">Контент-план</span>
+                        <h2 class="lp-h2" id="plan-title">Идеи на каждый день по трём столпам</h2>
+                        <p class="lp-lead">План строится по вашему медиа-образу. Нажмите «Создать пост» — идея и платформа подставятся сами.</p>
+                    </div>
+                    <div class="lp-pillar-row">
+                        <div class="app-legend">
+                            <span class="ps-pillar ps-pillar--1"><span class="ps-pillar-mark" aria-hidden="true"></span>О продукте</span>
+                            <span class="ps-pillar ps-pillar--2"><span class="ps-pillar-mark" aria-hidden="true"></span>Экспертиза</span>
+                            <span class="ps-pillar ps-pillar--3"><span class="ps-pillar-mark" aria-hidden="true"></span>Вовлечение</span>
+                        </div>
+                        <p class="form-hint">Пример для компании. У личного бренда и сообщества — свои столпы.</p>
+                    </div>
+                </div>
+                <div class="lp-plan" aria-label="Пример контент-плана">
+                    <div class="ps-planday is-done">
+                        <div class="ps-planday-date"><span class="ps-planday-num">12</span><span class="ps-planday-wd">пн</span></div>
+                        <div class="ps-planday-body">
+                            <div class="ps-planday-meta"><span class="ps-pillar ps-pillar--1"><span class="ps-pillar-mark"></span>О продукте</span><span class="ps-planday-platform">{{ ui.icon('send', 14) }}Telegram</span></div>
+                            <p class="ps-planday-idea">Почему наш хлеб пахнет так, будто его испекли пять минут назад</p>
+                        </div>
+                        <div class="ps-planday-action"><span class="ps-badge ps-badge--success">{{ ui.icon('sparkle', 14) }}<span>Пост готов</span></span></div>
+                    </div>
+                    <div class="ps-planday">
+                        <div class="ps-planday-date"><span class="ps-planday-num">13</span><span class="ps-planday-wd">вт</span></div>
+                        <div class="ps-planday-body">
+                            <div class="ps-planday-meta"><span class="ps-pillar ps-pillar--2"><span class="ps-pillar-mark"></span>Экспертиза</span><span class="ps-planday-platform">{{ ui.icon('image', 14) }}Instagram</span></div>
+                            <p class="ps-planday-idea">Закваска или дрожжи: в чём разница — разбираем с технологом</p>
+                        </div>
+                        <div class="ps-planday-action"><button type="button" class="ps-btn ps-btn--secondary ps-btn--sm" data-demo-plan>{{ ui.icon('sparkle', 16) }}<span class="ps-btn-label">Создать пост</span></button></div>
+                    </div>
+                    <div class="ps-planday">
+                        <div class="ps-planday-date"><span class="ps-planday-num">14</span><span class="ps-planday-wd">ср</span></div>
+                        <div class="ps-planday-body">
+                            <div class="ps-planday-meta"><span class="ps-pillar ps-pillar--3"><span class="ps-pillar-mark"></span>Вовлечение</span><span class="ps-planday-platform">{{ ui.icon('send', 14) }}Telegram</span></div>
+                            <p class="ps-planday-idea">Опрос: какой хлеб испечь в субботу — ржаной или с семечками?</p>
+                        </div>
+                        <div class="ps-planday-action"><button type="button" class="ps-btn ps-btn--secondary ps-btn--sm" data-demo-plan>{{ ui.icon('sparkle', 16) }}<span class="ps-btn-label">Создать пост</span></button></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="lp-section" aria-labelledby="how-title">
+            <div class="lp-container">
+                <div class="lp-head">
+                    <span class="lp-kicker">Как это работает</span>
+                    <h2 class="lp-h2" id="how-title">Четыре шага до первого поста</h2>
+                </div>
+                <ol class="lp-steps">
+                    <li class="lp-step"><span class="lp-step-num" aria-hidden="true">1</span><h3>Зарегистрируйтесь</h3><p>Имя, телефон, email и пароль — аккаунт готов за минуту.</p></li>
+                    <li class="lp-step"><span class="lp-step-num" aria-hidden="true">2</span><h3>Опишите медиа-образ</h3><p>Кто вы, чем полезны, как говорите. Или дайте ссылку на канал — ИИ заполнит сам.</p></li>
+                    <li class="lp-step"><span class="lp-step-num" aria-hidden="true">3</span><h3>Создавайте контент</h3><p>Посты, картинки и план на неделю вперёд — в вашем стиле.</p></li>
+                    <li class="lp-step"><span class="lp-step-num" aria-hidden="true">4</span><h3>Публикуйте</h3><p>Добавьте Telegram-канал и отправляйте готовые посты в один клик.</p></li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="lp-section">
+            <div class="lp-container">
+                <div class="lp-cta">
+                    {{ ui.logo('lpcta', 'color', 56, 'mark') }}
+                    <h2 class="lp-h2">Начните с медиа-образа — это 5 минут</h2>
+                    <p class="lp-lead">После регистрации кабинет сразу предложит заполнить анкету. Первый пост — через пару минут после неё.</p>
+                    <div class="app-actions" style="justify-content: center">
+                        <a class="ps-btn ps-btn--primary ps-btn--lg" href="/register">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Начать бесплатно</span></a>
+                        <a class="ps-btn ps-btn--quiet ps-btn--lg" href="/login"><span class="ps-btn-label">У меня есть аккаунт</span></a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="lp-footer">
+        <div class="lp-container lp-footer-inner">
+            {{ ui.logo('lpfoot', 'mono', 28) }}
+            <nav aria-label="Ссылки">
+                <a class="ps-btn ps-btn--quiet ps-btn--sm" href="/login"><span class="ps-btn-label">Вход</span></a>
+                <a class="ps-btn ps-btn--quiet ps-btn--sm" href="/register"><span class="ps-btn-label">Регистрация</span></a>
+                <a class="ps-btn ps-btn--quiet ps-btn--sm" href="/dashboard"><span class="ps-btn-label">Кабинет</span></a>
+            </nav>
+            <small>© 2026 ИИ Пресс-секретарь</small>
         </div>
     </footer>
 
+    <script src="/static/press/glass.js?v=4" defer></script>
+    <script src="/static/press/hero-bg.js?v=13" defer></script>
     <script>
-        (function () {
-            function isDark() {
-                return document.documentElement.getAttribute('data-theme') !== 'light';
-            }
-            function setIcon(btn) {
-                if (btn) btn.textContent = isDark() ? '\u2600\uFE0F' : '\uD83C\uDF19';
-            }
-            document.addEventListener('click', function (e) {
-                var btn = e.target.closest('[data-theme-toggle]');
-                if (!btn) return;
-                if (isDark()) {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                    try { localStorage.setItem('theme', 'light'); } catch (err) {}
-                } else {
-                    document.documentElement.removeAttribute('data-theme');
-                    try { localStorage.setItem('theme', 'dark'); } catch (err) {}
-                }
-                setIcon(btn);
+    /* Вариант узора по времени суток у посетителя: утро 5–11, день 11–17, вечер 17–22, ночь 22–5 */
+    (function () {
+        var hero = document.querySelector('.lp-hero');
+        if (!hero) return;
+        var h = new Date().getHours();
+        var part = h >= 5 && h < 11 ? 'morning' : h < 17 && h >= 11 ? 'day' : h >= 17 && h < 22 ? 'evening' : 'night';
+        var q = new URLSearchParams(location.search).get('daypart');
+        if (q && /^(morning|day|evening|night)$/.test(q)) part = q;
+        hero.setAttribute('data-daypart', part);
+    })();
+    </script>
+    <template id="tpl-pl-telegram">{{ ui.icon('send', 16) }}</template>
+    <template id="tpl-pl-instagram">{{ ui.icon('image', 16) }}</template>
+    <template id="tpl-pl-linkedin">{{ ui.icon('building', 16) }}</template>
+    <template id="tpl-ready"><span class="ps-badge ps-badge--success">{{ ui.icon('sparkle', 14) }}<span>Пост готов</span></span></template>
+    <script>
+    /* Живой пример на первом экране: 10 медиа-образов, у каждого три правки. Ничего не отправляется. */
+    (function () {
+        var demo = document.getElementById('demo');
+        if (!demo) return;
+        var EX = [{"name": "Пекарня «Тёплый хлеб»", "platform": "telegram", "style": "Вовлекающий", "orig": ["Наш хлеб пахнет так, будто его испекли пять минут назад. Потому что так и есть: печём с 6:30 до 17:00 и ничего не замораживаем.", "Артёма, 84. До 9 утра к багету — кофе в подарок."], "short": ["Печём с 6:30 до 17:00 и ничего не замораживаем.", "Артёма, 84. До 9 утра к багету — кофе в подарок."], "official": ["Пекарня «Тёплый хлеб» печёт хлеб каждый день с 6:30 до 17:00 и не использует замороженное тесто.", "Адрес: ул. Артёма, 84. До 9:00 к каждому багету — кофе в подарок."], "cta": "Заходите утром: первая партия ещё тёплая."}, {"name": "Стоматология «Улыбка рядом»", "platform": "instagram", "style": "Экспертный", "orig": ["Зубы реагируют на холодное — это не повод терпеть. Чаще всего дело в истончённой эмали или открытых шейках зубов.", "На осмотре за 20 минут найдём причину и подберём пасту или защитное покрытие. Ул. Университетская, 12."], "short": ["Зубы реагируют на холодное? Чаще всего виновата истончённая эмаль.", "Найдём причину за 20 минут осмотра. Ул. Университетская, 12."], "official": ["Повышенная чувствительность зубов к холодному обычно связана с истончением эмали или обнажением шеек зубов.", "Клиника «Улыбка рядом» проводит диагностику за 20 минут и подбирает лечение. Адрес: ул. Университетская, 12."], "cta": "Запишитесь на осмотр по телефону в профиле — подберём удобное время."}, {"name": "Автосервис «Гараж на Шахтёрской»", "platform": "telegram", "style": "Экспертный", "orig": ["Скрип при торможении — первый звонок: колодки стёрлись до сигнальной пластины. Если тянуть, пострадают и диски.", "Колодки меняем за час и заодно проверяем тормозную жидкость."], "short": ["Тормоза скрипят — пора менять колодки, пока целы диски.", "Меняем за час."], "official": ["Скрип при торможении указывает на износ тормозных колодок. Своевременная замена предотвращает повреждение тормозных дисков.", "Автосервис выполняет замену колодок за один час, включая проверку тормозной жидкости."], "cta": "Запишитесь заранее: на субботу окна заканчиваются уже в четверг."}, {"name": "Волонтёрский центр «Рядом»", "platform": "telegram", "style": "Вовлекающий", "orig": ["В субботу собираем подарки для пожилых жителей нашего района. Нужны тёплые носки, чай и открытки, подписанные от руки.", "Пункт сбора — библиотека на Артёма, 45, с 10:00 до 16:00."], "short": ["В субботу собираем тёплые носки, чай и открытки для пожилых соседей.", "Библиотека на Артёма, 45, с 10:00 до 16:00."], "official": ["В субботу волонтёрский центр «Рядом» проводит сбор подарков для пожилых жителей района: тёплых носков, чая и подписанных открыток.", "Пункт приёма — библиотека по адресу ул. Артёма, 45, с 10:00 до 16:00."], "cta": "Не получается прийти? Напишите нам — заберём подарок сами."}, {"name": "Фитнес-студия «Пульс»", "platform": "instagram", "style": "Продающий", "orig": ["Первая тренировка — бесплатно. Тренер покажет технику, подберёт нагрузку и составит план на месяц.", "Группы утром, днём и вечером — время найдётся даже при плотном графике."], "short": ["Первая тренировка бесплатно: техника, нагрузка и план на месяц.", "Группы утром, днём и вечером."], "official": ["Студия «Пульс» проводит бесплатное пробное занятие с тренером: постановка техники, подбор нагрузки и план тренировок на месяц.", "Групповые занятия проходят утром, днём и вечером."], "cta": "Запишитесь до пятницы — в утренней группе осталось шесть мест."}, {"name": "Книжный магазин «Переплёт»", "platform": "telegram", "style": "Личный", "orig": ["Эту неделю я читаю «Дом, в котором…» Мариам Петросян и не могу оторваться. Отложила для вас ещё три экземпляра.", "Если любите длинные истории, где каждый герой — целый мир, эта книга для вас."], "short": ["Не могу оторваться от «Дома, в котором…» Мариам Петросян.", "Отложила для вас три экземпляра."], "official": ["На этой неделе книжный магазин «Переплёт» рекомендует роман Мариам Петросян «Дом, в котором…».", "В наличии три экземпляра."], "cta": "Напишите в комментариях «хочу» — придержу книгу до выходных."}, {"name": "Юрист Ирина Котова", "platform": "linkedin", "style": "Экспертный", "orig": ["Купили технику, а она сломалась через неделю? Вы вправе вернуть деньги или потребовать замену — даже если коробку уже выбросили.", "Главное — сохранить чек или выписку по карте. Разбираю частые ошибки покупателей каждую среду."], "short": ["Техника сломалась через неделю — деньги можно вернуть даже без коробки.", "Сохраните чек или выписку по карте."], "official": ["При обнаружении недостатка в товаре покупатель вправе потребовать возврата денег или замены товара. Сохранность упаковки для этого не обязательна.", "Для подтверждения покупки достаточно чека или банковской выписки."], "cta": "Пришлите свой вопрос в личные сообщения — разберу его в следующем посте."}, {"name": "Школа робототехники «Шестерёнка»", "platform": "telegram", "style": "Вовлекающий", "orig": ["Наши ученики собрали робота, который сам поливает цветы в кабинете биологии. Понадобились датчик влажности и восемь занятий.", "Набор в группы для детей 8–12 лет открыт до конца месяца."], "short": ["Ученики собрали робота, который сам поливает цветы.", "Набор для детей 8–12 лет — до конца месяца."], "official": ["Учащиеся школы «Шестерёнка» сконструировали систему автоматического полива с датчиком влажности почвы. Проект занял восемь занятий.", "Набор в группы для детей 8–12 лет продлится до конца месяца."], "cta": "Приходите на открытое занятие в субботу: ребёнок соберёт первую модель сам."}, {"name": "Цветочная мастерская «Ромашка»", "platform": "instagram", "style": "Продающий", "orig": ["Букет, который простоит две недели, — это не магия, а правильная срезка и свежая вода каждый день.", "К каждому букету кладём подкормку и записку о том, как за ним ухаживать."], "short": ["Букет простоит две недели, если каждый день менять воду.", "Подкормка и памятка — в подарок."], "official": ["Букет сохраняет свежесть до двух недель при правильной срезке стеблей и ежедневной замене воды.", "Мастерская прикладывает к каждому букету подкормку и памятку по уходу."], "cta": "Закажите букет к пятнице — привезём к нужному часу."}, {"name": "Краеведческий музей", "platform": "telegram", "style": "Вовлекающий", "orig": ["В фондах музея нашлись фотографии улицы Артёма 1950-х годов. Узнаёте этот дом с башенкой?", "Все снимки покажем на выставке «Город, который мы помним» с 1 ноября."], "short": ["Нашли фото улицы Артёма 1950-х. Узнаёте дом с башенкой?", "Выставка — с 1 ноября."], "official": ["В фондах краеведческого музея обнаружены фотографии улицы Артёма 1950-х годов.", "Снимки будут представлены на выставке «Город, который мы помним». Открытие — 1 ноября."], "cta": "Есть старые снимки своего двора? Приносите — отсканируем и добавим на выставку."}];
+        var PLATFORM = { telegram: ['send', 'Telegram', '@канал'], instagram: ['image', 'Instagram', 'профиль'], linkedin: ['building', 'LinkedIn', 'профиль'] };
+        var STYLE_AFTER = { official: 'Официальный' };
+        var post = demo.querySelector('.ps-post'), textEl = demo.querySelector('[data-demo-text]');
+        var count = demo.querySelector('[data-demo-count]'), ver = demo.querySelector('[data-demo-version]');
+        var thinking = demo.querySelector('[data-demo-thinking]'), chips = demo.querySelectorAll('[data-demo-cmd]');
+        var pub = demo.querySelector('[data-demo-publish]'), pubNote = demo.querySelector('[data-demo-published]');
+        var idx = 0, version = 1, current = 'orig', busy = false;
+        function paras(ex, key) { return key === 'cta' ? ex.orig.concat([ex.cta]) : ex[key]; }
+        function render(key) {
+            var ex = EX[idx];
+            textEl.innerHTML = '';
+            paras(ex, key).forEach(function (t) { var p = document.createElement('p'); p.textContent = t; textEl.appendChild(p); });
+            var limit = ex.platform === 'instagram' ? 2200 : ex.platform === 'linkedin' ? 3000 : 4096;
+            count.textContent = paras(ex, key).join('\n\n').length.toLocaleString('ru-RU') + ' / ' + limit.toLocaleString('ru-RU') + ' зн.';
+            demo.querySelector('[data-demo-style]').textContent = STYLE_AFTER[key] || ex.style;
+        }
+        function resetPublish() {
+            pub.disabled = false; pub.querySelector('.ps-btn-label').textContent = 'Опубликовать';
+            pub.classList.add('ps-btn--primary'); pub.classList.remove('ps-btn--secondary'); pubNote.hidden = true;
+        }
+        function resetChips() {
+            chips.forEach(function (x) { x.disabled = false; x.classList.remove('is-selected'); });
+            demo.querySelector('[data-demo-cmd="orig"]').hidden = true;
+        }
+        function show(i) {
+            var ex = EX[i];
+            idx = i; version = 1; current = 'orig';
+            demo.querySelector('[data-demo-name]').textContent = ex.name;
+            var pl = PLATFORM[ex.platform];
+            demo.querySelector('[data-demo-platform]').innerHTML = document.getElementById('tpl-pl-' + ex.platform).innerHTML + pl[1];
+            ver.hidden = true; render('orig'); resetChips(); resetPublish();
+        }
+        /* Случайный пример при каждом открытии; не повторяем показанный в прошлый раз */
+        var start = Math.floor(Math.random() * EX.length);
+        try {
+            var last = +localStorage.getItem('lp-demo-last');
+            if (start === last) start = (start + 1 + Math.floor(Math.random() * (EX.length - 1))) % EX.length;
+            localStorage.setItem('lp-demo-last', start);
+        } catch (e) {}
+        show(start);
+        chips.forEach(function (c) {
+            c.addEventListener('click', function () {
+                var key = c.getAttribute('data-demo-cmd');
+                if (key === current || busy) return;
+                busy = true;
+                chips.forEach(function (x) { x.disabled = true; });
+                pub.disabled = true;
+                post.classList.add('is-busy'); thinking.hidden = false;
+                thinking.querySelector('span:last-child').textContent = key === 'orig' ? 'Возвращаю версию…' : 'Переписываю…';
+                setTimeout(function () {
+                    render(key); current = key; version += 1; busy = false;
+                    ver.hidden = false; ver.textContent = 'Версия ' + version;
+                    post.classList.remove('is-busy'); thinking.hidden = true;
+                    chips.forEach(function (x) { x.disabled = false; x.classList.toggle('is-selected', x === c && key !== 'orig'); });
+                    demo.querySelector('[data-demo-cmd="orig"]').hidden = key === 'orig';
+                    resetPublish();
+                }, 900);
             });
-            document.addEventListener('DOMContentLoaded', function () {
-                setIcon(document.querySelector('[data-theme-toggle]'));
+        });
+        pub.addEventListener('click', function () {
+            if (busy) return;
+            pub.disabled = true; pub.querySelector('.ps-btn-label').textContent = 'Публикую…';
+            setTimeout(function () {
+                pub.querySelector('.ps-btn-label').textContent = 'Опубликовано';
+                pub.classList.remove('ps-btn--primary'); pub.classList.add('ps-btn--secondary');
+                pubNote.querySelector('span').textContent = 'Опубликовано в ' + PLATFORM[EX[idx].platform][1];
+                pubNote.hidden = false;
+            }, 700);
+        });
+        /* Контент-план: «Создать пост» готовит пост и отмечает день */
+        document.querySelectorAll('[data-demo-plan]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                b.disabled = true; b.querySelector('.ps-btn-label').textContent = 'Пишу пост…';
+                setTimeout(function () {
+                    b.closest('.ps-planday').classList.add('is-done');
+                    b.parentNode.innerHTML = document.getElementById('tpl-ready').innerHTML;
+                }, 900);
             });
-
-            // Бургер-меню
-            var burgerBtn = document.getElementById('burgerBtn');
-            var mobileMenu = document.getElementById('mobileMenu');
-            if (burgerBtn && mobileMenu) {
-                function toggleMenu(force) {
-                    var isOpen = typeof force === 'boolean' ? force : !mobileMenu.classList.contains('open');
-                    mobileMenu.classList.toggle('open', isOpen);
-                    burgerBtn.classList.toggle('open', isOpen);
-                    burgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                    burgerBtn.setAttribute('aria-label', isOpen ? 'Закрыть меню' : 'Открыть меню');
-                }
-                burgerBtn.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    toggleMenu();
-                });
-                // Закрытие при клике по ссылке в меню
-                mobileMenu.addEventListener('click', function (e) {
-                    if (e.target.closest('a')) toggleMenu(false);
-                });
-                // Закрытие при клике вне меню
-                document.addEventListener('click', function (e) {
-                    if (mobileMenu.classList.contains('open') &&
-                        !e.target.closest('.header-inner') &&
-                        !e.target.closest('.mobile-menu')) {
-                        toggleMenu(false);
-                    }
-                });
-            }
-        })();
+        });
+    })();
     </script>
 </body>
 </html>

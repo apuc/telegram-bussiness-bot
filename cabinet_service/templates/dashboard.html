@@ -1,41 +1,122 @@
 {% extends "base.html" %}
-{% block title %}Главная — Личный кабинет{% endblock %}
+{% block title %}Главная{% endblock %}
 {% block content %}
-<h1>Привет, {{ user.name }}!</h1>
-<div class="card">
-    <p><strong>Телефон:</strong> {{ user.phone }}</p>
-    <p><strong>Email:</strong> {{ user.email }}</p>
-    <p><strong>В кабинете с:</strong> {{ user.created_at }}</p>
+{%- set first_name = user.name | first_name -%}
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1"><span data-greeting>{{ greeting_for_hour() }}</span>{% if first_name %}, {{ first_name }}{% endif %}</h1>
+        <p class="ps-lead">
+            {% if counters.posts %}Всего {{ counters.posts }} {{ plural(counters.posts, ['пост', 'поста', 'постов']) }} и {{ counters.published }} {{ plural(counters.published, ['публикация', 'публикации', 'публикаций']) }}.
+            {% else %}Здесь появятся ваши посты, картинки и публикации.{% endif %}
+        </p>
+    </div>
+    <a href="/generate" class="ps-btn ps-btn--primary ps-btn--lg">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Создать пост</span></a>
 </div>
 
-<div class="card">
-    <h2>Медиа-образ</h2>
-    {% if latest_survey %}
-    <p><strong>Активный:</strong> <a href="/surveys/{{ latest_survey.id }}">{{ latest_survey.title }}</a></p>
-    <p class="form-hint">Посты генерируются на основе этого медиа-образа.</p>
-    <div class="post-actions">
-        <a href="/surveys/{{ latest_survey.id }}" class="copy-btn">Открыть</a>
-        <a href="/survey" class="copy-btn">➕ Создать новый</a>
-        <a href="/survey/import" class="copy-btn">📤 Загрузить из файла</a>
+{% if not latest_survey %}
+<section class="ps-panel">
+    <div class="ps-empty">
+        <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('persona', 28) }}</span>
+        <h2 class="ps-empty-title">Начните с медиа-образа</h2>
+        <p class="ps-empty-text">Опишите бренд, личность или сообщество один раз — и посты будут звучать вашим голосом. Это 5 минут.</p>
+        <div class="app-actions" style="justify-content:center">
+            <a href="/survey" class="ps-btn ps-btn--primary">{{ ui.icon('plus', 20) }}<span class="ps-btn-label">Создать медиа-образ</span></a>
+            <a href="/survey/import" class="ps-btn ps-btn--quiet">{{ ui.icon('upload', 20) }}<span class="ps-btn-label">Загрузить из файла</span></a>
+        </div>
+    </div>
+</section>
+{% else %}
+<div class="ps-grid-4">
+    <div class="ps-stat">
+        <span class="ps-stat-icon" aria-hidden="true">{{ ui.icon('news', 20) }}</span>
+        <span class="ps-stat-label">Постов создано</span>
+        <span class="ps-stat-value">{{ counters.posts|num }}</span>
+    </div>
+    <div class="ps-stat">
+        <span class="ps-stat-icon" aria-hidden="true">{{ ui.icon('image', 20) }}</span>
+        <span class="ps-stat-label">Картинок</span>
+        <span class="ps-stat-value">{{ counters.images|num }}</span>
+    </div>
+    <div class="ps-stat">
+        <span class="ps-stat-icon" aria-hidden="true">{{ ui.icon('megaphone', 20) }}</span>
+        <span class="ps-stat-label">Опубликовано</span>
+        <span class="ps-stat-value">{{ counters.published|num }}</span>
+    </div>
+    <div class="ps-stat">
+        <span class="ps-stat-icon" aria-hidden="true">{{ ui.icon('persona', 20) }}</span>
+        <span class="ps-stat-label">Медиа-образов</span>
+        <span class="ps-stat-value">{{ counters.surveys|num }}</span>
+        <span class="ps-stat-note">Активный — {{ latest_survey.title | truncate(28, True, '…') }}</span>
+    </div>
+</div>
+
+<div class="ps-grid-2">
+    <article class="ps-persona is-active">
+        <div class="ps-persona-top">
+            <span class="ps-persona-icon" aria-hidden="true">{{ ui.icon('persona', 22) }}</span>
+            <span class="ps-persona-type">Медиа-образ</span>
+            <span class="ps-badge ps-badge--brand">{{ ui.icon('check', 14) }}<span>Активный</span></span>
+        </div>
+        <h3 class="ps-persona-name">{{ latest_survey.title }}</h3>
+        <p class="ps-persona-sum">Посты, картинки и контент-план строятся по этой анкете: личность, УТП, тон голоса, аудитория.</p>
+        <div class="ps-persona-actions">
+            <a href="/surveys/{{ latest_survey.id }}" class="ps-btn ps-btn--quiet ps-btn--sm">{{ ui.icon('edit', 16) }}<span class="ps-btn-label">Анкета</span></a>
+            <a href="/surveys/{{ latest_survey.id }}/export" class="ps-btn ps-btn--quiet ps-btn--sm">{{ ui.icon('download', 16) }}<span class="ps-btn-label">Экспорт .docx</span></a>
+        </div>
+    </article>
+    <section class="ps-panel">
+        <h2 class="ps-h2">Быстрый старт</h2>
+        <div class="ps-grid-tiles">
+            <a href="/generate" class="ps-action">
+                <span class="ps-action-icon" aria-hidden="true">{{ ui.icon('sparkle', 20) }}</span>
+                <span class="ps-action-title">Создать пост</span>
+                <span class="ps-action-desc">Платформа, стиль — и готово</span>
+            </a>
+            <a href="/plan" class="ps-action">
+                <span class="ps-action-icon" aria-hidden="true">{{ ui.icon('calendar', 20) }}</span>
+                <span class="ps-action-title">Контент-план</span>
+                <span class="ps-action-desc">Идеи постов на неделю и дальше</span>
+            </a>
+            <a href="/surveys" class="ps-action">
+                <span class="ps-action-icon" aria-hidden="true">{{ ui.icon('persona', 20) }}</span>
+                <span class="ps-action-title">Медиа-образы</span>
+                <span class="ps-action-desc">Анкеты бренда и тон голоса</span>
+            </a>
+        </div>
+    </section>
+</div>
+{% endif %}
+
+<section class="app-section">
+    <div class="app-section-head">
+        <h2 class="ps-h2">Последние посты</h2>
+        {% if recent_posts %}<a href="/history" class="ps-btn ps-btn--quiet ps-btn--sm"><span class="ps-btn-label">Все посты</span>{{ ui.icon('chevron-right', 16) }}</a>{% endif %}
+    </div>
+    {% if recent_posts %}
+    <div class="ps-grid-3">
+        {% for post in recent_posts %}{% include "_post_card.html" %}{% endfor %}
     </div>
     {% else %}
-    <p>Медиа-образ ещё не создан. Создайте его — посты будут генерироваться на его основе.</p>
-    <div class="post-actions">
-        <a href="/survey" class="copy-btn">➕ Создать медиа-образ</a>
-        <a href="/survey/import" class="copy-btn">📤 Загрузить из файла</a>
+    <div class="ps-panel">
+        <div class="ps-empty">
+            <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('news', 28) }}</span>
+            <h3 class="ps-empty-title">Постов пока нет</h3>
+            <p class="ps-empty-text">Выберите платформу и стиль — первый пост появится здесь.</p>
+            {% if latest_survey %}<a href="/generate" class="ps-btn ps-btn--primary">{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Создать пост</span></a>{% endif %}
+        </div>
     </div>
     {% endif %}
-</div>
+</section>
+{% endblock %}
 
-<div class="grid">
-    <a class="tile" href="/generate">💡 Сгенерировать пост</a>
-    <a class="tile" href="/plan">📅 Контент-план</a>
-    <a class="tile" href="/history">📜 Мои посты</a>
-    <a class="tile" href="/images">🖼 Медиа-библиотека</a>
-    <a class="tile" href="/channels">📢 Каналы публикации</a>
-    <a class="tile" href="/surveys">📋 Мои медиа-образы</a>
-    <a class="tile" href="/stats">📈 Статистика</a>
-    <a class="tile" href="/profile/edit">✏️ Редактировать профиль</a>
-    <a class="tile tile-danger" href="/delete-account">🗑 Удалить аккаунт</a>
-</div>
+{% block scripts %}
+<script>
+/* Приветствие по часам пользователя: утро 5–11, день 11–17, вечер 17–23, ночь 23–5 */
+(function () {
+    var el = document.querySelector('[data-greeting]');
+    if (!el) return;
+    var h = new Date().getHours();
+    el.textContent = h >= 5 && h < 11 ? 'Доброе утро' : h >= 11 && h < 17 ? 'Добрый день' : h >= 17 && h < 23 ? 'Добрый вечер' : 'Доброй ночи';
+})();
+</script>
 {% endblock %}

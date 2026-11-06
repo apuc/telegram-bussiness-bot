@@ -1,74 +1,95 @@
 {% extends "base.html" %}
-{% block title %}Сгенерировать картинку — Личный кабинет{% endblock %}
+{% block title %}Сгенерировать картинку{% endblock %}
 {% block content %}
-<h1>Генерация картинки</h1>
-
-<div id="taskError" class="task-error"></div>
-
-<div id="taskLoader" class="task-loader">
-    <div class="spinner"></div>
-    <div class="task-loader-text">Генерирую картинку...</div>
-    <div class="task-loader-sub">Это может занять 15–60 секунд</div>
+{#- Шаблоны бэкенда → миниатюры PresetPicker из дизайн-системы -#}
+{%- set art_for = {'product': 'product', 'lifestyle': 'portrait', 'food': 'product', 'business': 'mockup', 'abstract': 'abstract',
+    'portrait': 'portrait', 'infographic': 'announce', 'banner': 'cover', 'nature': 'landscape', 'minimal': 'minimal',
+    'story': 'collage', 'before_after': 'collage'} -%}
+<div class="ps-main-head">
+    <div>
+        <a href="/images" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">Картинки</span></a>
+        <h1 class="ps-h1">Новая картинка</h1>
+        <p class="ps-lead">Выберите шаблон или опишите идею своими словами.</p>
+    </div>
 </div>
 
+<div id="taskError" class="task-error" role="alert"></div>
+<div id="taskLoader" class="task-loader">
+    <div class="ps-thinking" role="status"><span class="ps-fan" aria-hidden="true"><i></i><i></i><i></i></span><span>Рисую картинку…</span></div>
+    <span class="task-loader-sub">Обычно 15–60 секунд</span>
+</div>
 <div id="taskResult" class="task-result"></div>
 
-<div id="taskForm">
-    <!-- Выбор шаблона -->
-    <h2>Выбери шаблон</h2>
-    <div class="template-grid" id="templateGrid">
-        {% for t in templates %}
-        <button type="button" class="template-card" data-key="{{ t.key }}"
-                data-prompt="{{ t.prompt }}" data-style="{{ t.style }}"
-                data-size="{{ t.size }}" data-hint="{{ t.hint }}">
-            <span class="template-icon">{{ t.icon }}</span>
-            <span class="template-name">{{ t.name }}</span>
-            <span class="template-hint">{{ t.hint }}</span>
-        </button>
-        {% endfor %}
-        <button type="button" class="template-card template-card-custom" data-key="custom">
-            <span class="template-icon">✏️</span>
-            <span class="template-name">Свой вариант</span>
-            <span class="template-hint">Напиши промпт сам</span>
-        </button>
-    </div>
-
-    <div id="selectedTemplateHint" class="selected-hint" style="display:none;"></div>
-
-    <!-- Форма генерации -->
-    <form method="post" action="/images/generate" class="form" id="imageForm" onsubmit="return startImageGen(event)" enctype="multipart/form-data">
-        <label>Что нарисовать?
-            <textarea name="prompt" id="promptInput" rows="4" required
-                      placeholder="Например: современный кофейный стакан на белом фоне, логотип для кофейни">{{ form.prompt if form else '' }}</textarea>
-        </label>
-        <label>Исходное изображение <span class="form-hint">(необязательно) — ИИ использует его как основу</span>
-            <input type="file" name="reference_image" id="referenceImage" accept="image/*">
-        </label>
-        <div id="refImagePreview" style="display:none; margin: 5px 0 10px;">
-            <img id="refImageThumb" style="max-height:120px; border-radius:8px; border:1px solid var(--border);">
-            <button type="button" class="button-link button-link-danger" onclick="clearRefImage()" style="margin-left:8px">✕ Убрать</button>
+<div id="taskForm" class="app-stack-lg">
+    <section class="ps-panel">
+        <h2 class="ps-h2">Шаблон</h2>
+        <div class="ps-presets" id="templateGrid" role="radiogroup" aria-label="Шаблон изображения">
+            {% for t in templates %}
+            <button type="button" role="radio" aria-checked="false" class="ps-preset" data-key="{{ t.key }}"
+                    data-prompt="{{ t.prompt }}" data-style="{{ t.style }}" data-size="{{ t.size }}" data-hint="{{ t.hint }}" title="{{ t.hint }}">
+                <span class="ps-preset-art" aria-hidden="true"><svg viewBox="0 0 64 48" preserveAspectRatio="xMidYMid slice">{{ ui.PRESET_ART[art_for.get(t.key, 'minimal')] | safe }}</svg></span>
+                <span class="ps-preset-label">{{ t.name }}</span>
+            </button>
+            {% endfor %}
+            <button type="button" role="radio" aria-checked="false" class="ps-preset" data-key="custom">
+                <span class="ps-preset-art app-preset-custom" aria-hidden="true">{{ ui.icon('edit', 24) }}</span>
+                <span class="ps-preset-label">Свой вариант</span>
+            </button>
         </div>
-        <label>Размер
-            <select name="size" id="sizeInput" required>
-                {% for key, (value, label) in sizes.items() %}
-                <option value="{{ key }}" {% if form and form.size == key %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
+        <div id="selectedTemplateHint" class="selected-hint" style="display:none;"></div>
+    </section>
+
+    <form method="post" action="/images/generate" class="ps-panel app-form" id="imageForm" onsubmit="return startImageGen(event)" enctype="multipart/form-data">
+        <h2 class="ps-h2">Что нарисовать</h2>
+        <div class="ps-field">
+            <label for="promptInput" class="ps-field-label">Описание</label>
+            <textarea name="prompt" id="promptInput" rows="4" class="ps-field-control" required
+                      placeholder="Например: стакан кофе на деревянном столе, утренний свет">{{ form.prompt if form else '' }}</textarea>
+        </div>
+        <div class="ps-grid-2 app-grid-fields">
+            <div class="ps-field">
+                <label for="sizeInput" class="ps-field-label">Размер</label>
+                <div class="ps-select">
+                    <select name="size" id="sizeInput" class="ps-field-control ps-select-control" required>
+                        {% for key, (value, label) in sizes.items() %}
+                        <option value="{{ key }}" {% if form and form.size == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    {{ ui.icon('chevron-down', 18, 'ps-select-chev') }}
+                </div>
+            </div>
+            <div class="ps-field">
+                <label for="styleInput" class="ps-field-label">Стиль</label>
+                <div class="ps-select">
+                    <select name="style" id="styleInput" class="ps-field-control ps-select-control">
+                        {% for key, (label, suffix) in styles.items() %}
+                        <option value="{{ key }}" {% if form and form.style == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    {{ ui.icon('chevron-down', 18, 'ps-select-chev') }}
+                </div>
+            </div>
+        </div>
+        <label class="ps-drop" id="refDrop">
+            <input type="file" name="reference_image" id="referenceImage" accept="image/*" class="ps-drop-input">
+            <span class="ps-drop-icon" aria-hidden="true">{{ ui.icon('image', 24) }}</span>
+            <span class="ps-drop-title">Референс для стиля</span>
+            <span class="ps-drop-hint">Необязательно. ИИ повторит стиль картинки.</span>
         </label>
-        <label>Стиль
-            <select name="style" id="styleInput">
-                {% for key, (label, suffix) in styles.items() %}
-                <option value="{{ key }}" {% if form and form.style == key %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
+        <div id="refImagePreview" class="app-actions" style="display:none">
+            <img id="refImageThumb" alt="Референс" style="max-height:96px; border-radius: var(--radius-sm)">
+            <button type="button" class="ps-btn ps-btn--quiet ps-btn--sm" onclick="clearRefImage()">{{ ui.icon('close', 16) }}<span class="ps-btn-label">Убрать</span></button>
+        </div>
         <input type="hidden" name="task_type" value="generate_image">
-        <button type="submit" id="submitBtn" disabled>🎨 Сгенерировать</button>
-        <p class="form-hint">Генерация занимает 10–60 секунд. Картинка сохранится в медиа-библиотеку.</p>
+        <div class="app-actions">
+            <button type="submit" id="submitBtn" class="ps-btn ps-btn--primary ps-btn--lg" disabled>{{ ui.icon('sparkle', 20) }}<span class="ps-btn-label">Сгенерировать изображение</span></button>
+            <span class="form-hint">Картинка сохранится в библиотеку.</span>
+        </div>
     </form>
 </div>
-<p><a href="/images">← Назад в библиотеку</a></p>
+{% endblock %}
 
+{% block scripts %}
 <script>
 function clearRefImage() {
     document.getElementById('referenceImage').value = '';
@@ -84,8 +105,15 @@ document.getElementById('referenceImage').addEventListener('change', function(e)
     };
     reader.readAsDataURL(file);
 });
-</script>
-<script>
+(function() {
+    var drop = document.getElementById('refDrop'), input = document.getElementById('referenceImage');
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('is-over'); });
+    drop.addEventListener('drop', function (e) {
+        e.preventDefault(); drop.classList.remove('is-over');
+        input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change'));
+    });
+})();
 (function() {
     var grid = document.getElementById('templateGrid');
     var promptInput = document.getElementById('promptInput');
@@ -95,77 +123,67 @@ document.getElementById('referenceImage').addEventListener('change', function(e)
     var submitBtn = document.getElementById('submitBtn');
     var selectedKey = null;
 
-    grid.addEventListener('click', function(e) {
-        var card = e.target.closest('.template-card');
-        if (!card) return;
+    function select(card) {
+        grid.querySelectorAll('.ps-preset').forEach(function(c) {
+            var on = c === card;
+            c.classList.toggle('is-selected', on);
+            c.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+    }
 
-        // Снять выделение со всех
-        grid.querySelectorAll('.template-card').forEach(function(c) { c.classList.remove('selected'); });
-        card.classList.add('selected');
+    grid.addEventListener('click', function(e) {
+        var card = e.target.closest('.ps-preset');
+        if (!card) return;
+        select(card);
         selectedKey = card.dataset.key;
 
         if (selectedKey === 'custom') {
             hintEl.style.display = 'none';
-            promptInput.value = '';
+            /* стираем только текст шаблона; свой текст человека оставляем */
+            var fromTemplate = Array.prototype.some.call(grid.querySelectorAll('.ps-preset[data-prompt]'), function (c) { return c.dataset.prompt === promptInput.value; });
+            if (fromTemplate) promptInput.value = '';
             promptInput.focus();
-            promptInput.removeAttribute('readonly');
             submitBtn.disabled = !promptInput.value.trim();
             return;
         }
 
-        var prompt = card.dataset.prompt;
-        var style = card.dataset.style;
-        var size = card.dataset.size;
-        var hint = card.dataset.hint;
-
-        promptInput.value = prompt;
-        if (styleInput.querySelector('option[value="' + style + '"]')) {
-            styleInput.value = style;
-        }
-        if (sizeInput.querySelector('option[value="' + size + '"]')) {
-            sizeInput.value = size;
-        }
-
-        hintEl.textContent = '💡 ' + hint;
+        promptInput.value = card.dataset.prompt;
+        if (styleInput.querySelector('option[value="' + card.dataset.style + '"]')) styleInput.value = card.dataset.style;
+        if (sizeInput.querySelector('option[value="' + card.dataset.size + '"]')) sizeInput.value = card.dataset.size;
+        hintEl.textContent = card.dataset.hint;
         hintEl.style.display = 'block';
         submitBtn.disabled = false;
     });
 
-    // Разрешить ввод вручную при изменении текста
+    // Текст изменён вручную — переключаем на «Свой вариант»
     promptInput.addEventListener('input', function() {
         if (selectedKey && selectedKey !== 'custom') {
-            // Пользователь изменил текст — переключаем на "свой вариант"
-            grid.querySelectorAll('.template-card').forEach(function(c) { c.classList.remove('selected'); });
-            var customCard = grid.querySelector('[data-key="custom"]');
-            if (customCard) customCard.classList.add('selected');
+            select(grid.querySelector('[data-key="custom"]'));
             selectedKey = 'custom';
             hintEl.style.display = 'none';
         }
         submitBtn.disabled = !promptInput.value.trim();
     });
+    submitBtn.disabled = !promptInput.value.trim();
 })();
-</script>
 
-<script>
 function startImageGen(e) {
     e.preventDefault();
-    var form = document.getElementById('imageForm');
-    TaskEngine.start(form, {
-        loaderId: 'taskLoader',
-        formId: 'taskForm',
-        errorId: 'taskError',
-        resultId: 'taskResult',
+    TaskEngine.start(document.getElementById('imageForm'), {
+        loaderId: 'taskLoader', formId: 'taskForm', errorId: 'taskError', resultId: 'taskResult',
         onDone: function(result) {
-            var html = '<div class="card">' +
-                '<p>✅ Картинка сгенерирована!</p>' +
-                '<div class="media-grid"><div class="media-card">' +
-                '<a href="/media/' + result.filename + '" class="media-link" target="_blank">' +
-                '<img class="media-thumb" src="/media/' + result.filename + '" alt="Картинка">' +
-                '</a></div></div>' +
-                '<p><a href="/images" class="copy-btn">Перейти в библиотеку →</a> ' +
-                '<a href="/images/generate" class="copy-btn">Ещё одна →</a></p></div>';
-            document.getElementById('taskResult').innerHTML = html;
-            document.getElementById('taskResult').style.display = 'block';
+            var box = document.getElementById('taskResult');
+            box.innerHTML =
+                '<section class="ps-panel">' +
+                '<h2 class="ps-h2">Готово</h2>' +
+                '<a href="/media/' + encodeURIComponent(result.filename) + '" target="_blank" rel="noopener" class="ps-post-image" style="display:block; max-width:640px">' +
+                '<img src="/media/' + encodeURIComponent(result.filename) + '" alt="Сгенерированная картинка" style="object-fit:cover"></a>' +
+                '<div class="app-actions">' +
+                '<a href="/images" class="ps-btn ps-btn--primary"><span class="ps-btn-label">В библиотеку</span></a>' +
+                '<a href="/images/generate" class="ps-btn ps-btn--secondary"><span class="ps-btn-label">Ещё одна</span></a>' +
+                '</div></section>';
+            box.style.display = 'block';
+            Press.toast('Картинка готова', 'success', 'Она сохранена в библиотеку.');
         }
     });
     return false;

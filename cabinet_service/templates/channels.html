@@ -1,37 +1,42 @@
 {% extends "base.html" %}
-{% block title %}Каналы публикации — Личный кабинет{% endblock %}
+{% block title %}Каналы{% endblock %}
 {% block content %}
-<h1>Каналы публикации</h1>
-<p class="form-hint">Добавьте Telegram-каналы и чаты, куда бот будет публиковать посты. Бот должен быть админом в канале.</p>
-
-<div class="grid">
-  <a class="tile" href="/channels/add">➕ Добавить канал</a>
+{%- set chat_types = {'channel': 'Канал', 'group': 'Группа', 'supergroup': 'Супергруппа', 'private': 'Личный чат'} -%}
+<div class="ps-main-head">
+    <div>
+        <h1 class="ps-h1">Каналы</h1>
+        <p class="ps-lead">Telegram-каналы и чаты, куда публикуются посты. Бот должен быть в них администратором.</p>
+    </div>
+    <a href="/channels/add" class="ps-btn ps-btn--primary">{{ ui.icon('plus', 20) }}<span class="ps-btn-label">Добавить канал</span></a>
 </div>
 
 {% if channels %}
-<table class="table">
-  <thead>
-    <tr><th>Название</th><th>Тип</th><th>Username</th><th>Добавлен</th><th></th></tr>
-  </thead>
-  <tbody>
+<div class="app-list">
     {% for ch in channels %}
-    <tr>
-      <td>{{ ch.title }}</td>
-      <td>{{ ch.chat_type }}</td>
-      <td>{% if ch.username %}@{{ ch.username }}{% else %}—{% endif %}</td>
-      <td>{{ ch.created_at }}</td>
-      <td>
-        <form action="/channels/{{ ch.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Удалить канал?')">
-          <button type="submit" class="button-link button-link-danger">🗑</button>
-        </form>
-      </td>
-    </tr>
+    {%- set name = (ch.title or ch.username or '?') | replace('@', '') -%}
+    <div class="ps-channel">
+        <span class="ps-channel-avatar" aria-hidden="true">{{ name[:1] | upper }}</span>
+        <span class="ps-channel-text">
+            <span class="ps-channel-title">{{ ch.title or ('@' ~ ch.username) }}</span>
+            <span class="ps-channel-meta">{% if ch.username %}@{{ ch.username }}{% else %}ID {{ ch.chat_id }}{% endif %} · {{ chat_types.get(ch.chat_type, ch.chat_type) }}</span>
+        </span>
+        <span class="ps-badge ps-badge--neutral" title="При подключении бот был администратором канала">{{ ui.icon('check', 14) }}<span>Подключён {{ ch.created_at|local_dt('%d.%m.%Y') }}</span></span>
+        <span class="ps-channel-actions">
+            <form action="/channels/{{ ch.id }}/delete" method="post" class="inline-form" data-confirm="Удалить канал?" data-confirm-body="{{ ch.title }} — публиковать в него больше не получится.">
+                <button type="submit" class="ps-iconbtn" aria-label="Удалить канал {{ ch.title }}">{{ ui.icon('trash', 20) }}</button>
+            </form>
+        </span>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<div class="card">
-  <p>Нет добавленных каналов. <a href="/channels/add">Добавьте первый →</a></p>
 </div>
+{% else %}
+<section class="ps-panel">
+    <div class="ps-empty">
+        <span class="ps-empty-icon" aria-hidden="true">{{ ui.icon('megaphone', 28) }}</span>
+        <h2 class="ps-empty-title">Каналов пока нет</h2>
+        <p class="ps-empty-text">Добавьте Telegram-канал или чат — и публикуйте посты в один клик.</p>
+        <a href="/channels/add" class="ps-btn ps-btn--primary">{{ ui.icon('plus', 20) }}<span class="ps-btn-label">Добавить канал</span></a>
+    </div>
+</section>
 {% endif %}
 {% endblock %}

@@ -1,19 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Добавить канал — Личный кабинет{% endblock %}
+{% block title %}Добавить канал{% endblock %}
 {% block content %}
-<h1>Добавить канал</h1>
-<div class="card">
-  <p class="form-hint">
-    Введите <strong>@username</strong> канала/чата или числовой ID.<br>
-    Бот должен быть добавлен в админы канала, иначе публикация не сработает.
-  </p>
+<div class="ps-main-head">
+    <div>
+        <a href="/channels" class="ps-btn ps-btn--quiet ps-btn--sm app-back">{{ ui.icon('chevron-left', 16) }}<span class="ps-btn-label">Каналы</span></a>
+        <h1 class="ps-h1">Добавить канал</h1>
+    </div>
 </div>
-<form method="post" action="/channels/add" class="form">
-  <label>@username или ID
-    <input type="text" name="chat_input" value="{{ form.chat_input if form else '' }}"
-           placeholder="@my_channel или -1001234567890" required>
-  </label>
-  <button type="submit">Проверить и добавить</button>
-</form>
-<p><a href="/channels">← Назад к каналам</a></p>
+
+<div class="ps-split" style="--ps-aside: 340px">
+    {% if verify %}
+    <form method="post" action="/channels/verify" class="ps-panel app-form">
+        <h2 class="ps-h2">Подтвердите, что канал ваш</h2>
+        <p>Бот — администратор в «{{ verify.title }}». Осталось подтвердить, что канал принадлежит вам: добавьте код в описание канала в Telegram и сохраните.</p>
+        <div class="ps-field">
+            <label for="verify_code" class="ps-field-label">Код для описания</label>
+            <input id="verify_code" class="ps-field-control" type="text" value="{{ verify.code }}" readonly onfocus="this.select()">
+            <p class="ps-field-hint"><span>После проверки код можно удалить из описания.</span></p>
+        </div>
+        <div class="app-actions">
+            <button type="submit" class="ps-btn ps-btn--primary">{{ ui.icon('check', 20) }}<span class="ps-btn-label">Проверить код</span></button>
+            <a href="/channels/add" class="ps-btn ps-btn--quiet"><span class="ps-btn-label">Другой канал</span></a>
+        </div>
+    </form>
+    {% else %}
+    <form method="post" action="/channels/add" class="ps-panel app-form">
+        <div class="ps-field{% if errors %} is-error{% endif %}">
+            <label for="chat_input" class="ps-field-label">@username или ID</label>
+            <input id="chat_input" class="ps-field-control" type="text" name="chat_input" value="{{ form.chat_input if form else '' }}"
+                   placeholder="@my_channel или -1001234567890" aria-describedby="chat-hint" required>
+            <p id="chat-hint" class="ps-field-hint">{% if errors %}{{ ui.icon('alert', 16) }}{% endif %}<span>Например: @teplyhleb_dn или -1001234567890</span></p>
+        </div>
+        <button type="submit" class="ps-btn ps-btn--primary">{{ ui.icon('check', 20) }}<span class="ps-btn-label">Проверить и добавить</span></button>
+    </form>
+    {% endif %}
+
+    <aside class="ps-panel">
+        <h2 class="ps-h2">Перед добавлением</h2>
+        <ol class="app-stack" style="margin:0; padding-left: 20px; color: var(--ink-secondary)">
+            <li>Откройте канал или чат в Telegram.</li>
+            <li>Добавьте бота в администраторы с правом публиковать сообщения.</li>
+            <li>Вставьте @username канала или его числовой ID и нажмите «Проверить и добавить».</li>
+            <li>Добавьте выданный код в описание канала — так мы убедимся, что канал ваш.</li>
+        </ol>
+    </aside>
+</div>
 {% endblock %}
